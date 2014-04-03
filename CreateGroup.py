@@ -56,7 +56,6 @@ def mainFunction(portalUrl, portalAdminName, portalAdminPassword, groupName, gro
             # Add specified users to group    
             usersNotAdded = portalAdmin.add_group_users(userNames, groupID)
             arcpy.AddMessage("Users added to group - " + userNames)
-            arcpy.AddMessage(usersNotAdded['notAdded'])
         else:
             arcpy.AddError("Group has not been created - Group with this name may already exist.")
             

@@ -142,10 +142,8 @@ class Portal(object):
                          + 'pre-2.0 portals')
             return
 
-        user_names = _unpack(user_names, 'username')
-
         postdata = self._postdata()
-        postdata['users'] = ','.join(user_names)
+        postdata['users'] = user_names
         resp = self.con.post('community/groups/' + group_id + '/addUsers',
                                  postdata)
         return resp

@@ -2,6 +2,9 @@
 
 The ArcGIS Online & Portal toolkit contains a number of tools and scripts to administer Portal for ArcGIS and ArcGIS Online.
 
+#### Create ArcGIS Online/Portal Group
+Creates a ArcGIS Online or Portal for ArcGIS group. Sets up description, logo and members of the group.
+
 
 ## Features
 
