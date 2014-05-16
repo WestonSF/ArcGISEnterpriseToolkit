@@ -8,8 +8,8 @@ Creates a ArcGIS Online or Portal for ArcGIS group. Sets up description, logo an
 #### Add Users to ArcGIS Online/Portal Group (IN DEVELOPMENT)
 Adds a list of users to an ArcGIS Online or Portal for ArcGIS group.
 
-#### Add Users to Online/Portal Site (IN DEVELOPMENT)
-Adds a list of users to an ArcGIS Online or Portal for ArcGIS site with set permissions.
+#### Add Users to ArcGIS for Portal Site (IN DEVELOPMENT)
+Imports a list of users provided in a CSV file to ArcGIS for Portal, assigning to roles and setting default password.  
 
 
 ## Features

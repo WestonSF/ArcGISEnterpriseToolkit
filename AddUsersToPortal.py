@@ -17,6 +17,7 @@ import logging
 import smtplib
 import portalpy
 import arcpy
+import csv
 
 # Enable data to be overwritten
 arcpy.env.overwriteOutput = True
@@ -33,7 +34,7 @@ emailMessage = ""
 output = None
 
 # Start of main function
-def mainFunction(portalUrl, portalAdminName, portalAdminPassword): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(portalUrl, portalAdminName, portalAdminPassword, usersCSVFile): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # Logging
         if (enableLogging == "true"):
@@ -47,8 +48,32 @@ def mainFunction(portalUrl, portalAdminName, portalAdminPassword): # Get paramet
         # Get the admin information for the portal
         portalAdmin = portalpy.Portal(portalUrl, portalAdminName, portalAdminPassword)
 
+        # If configuration provided
+        if (usersCSVFile):
+            # Set CSV delimiter
+            csvDelimiter = ","
+            # Open the CSV file
+            with open(usersCSVFile, 'rb') as csvFile:
+                # Read the CSV file
+                rows = csv.reader(csvFile, delimiter=csvDelimiter)
+                # For each row in the CSV
+                count = 0
+                for row in rows:
+                    # Ignore the first line containing headers
+                    if (count > 0):
+                        # Get the parameters
+                        username = row[0]
+                        password = row[1]
+                        fullName = row[2]
+                        email = row[3]
+                        portalSignup = portalAdmin.signup(username, password, fullName, email)
 
-            
+                        # If group successfully created
+                        if (portalSignup):
+                            arcpy.AddMessage(fullName + " has been added to the Portal for ArcGIS site...");
+                        else:
+                            arcpy.AddError(str(portalSignup))                         
+                    count = count + 1
         # --------------------------------------- End of code --------------------------------------- #  
             
         # If called from gp tool return the arcpy parameter   
