@@ -119,7 +119,6 @@ class Portal(object):
         self.get_properties(True)
 
 
-
     def add_group_users(self, user_names, group_id):
         """ Adds users to the group specified.    
         
@@ -147,7 +146,6 @@ class Portal(object):
         resp = self.con.post('community/groups/' + group_id + '/addUsers',
                                  postdata)
         return resp
-    
     
     
     def create_group_from_dict(self, group, thumbnail=None):
@@ -188,6 +186,7 @@ class Portal(object):
         if resp and resp.get('success'):
             return resp['group']['id']
 
+
     def create_group(self, title, tags, description=None,
                      snippet=None, access='public', thumbnail=None, 
                      is_invitation_only=False, sort_field='avgRating', 
@@ -216,9 +215,6 @@ class Portal(object):
                     'isViewOnly' : is_view_only, 
                     'isinvitationOnly' : is_invitation_only}, thumbnail)
               
-        
-
-    
 
     def delete_group(self, group_id):
         """ Deletes a group. 
@@ -236,13 +232,32 @@ class Portal(object):
             return resp.get('success')
 
 
+    def create_item(self, owner, item_ids):
+        """ Creates a item and returns a item id if successful.  
+  
+        Arguments
+            title             required string, name of the group
+            tags              required string, comma-delimited list of tags
+            description       optional string, describes group in detail
+            snippet           optional string, <250 characters summarizes group
+            access            optional string, can be private, public, or org
+            thumbnail         optional string, URL to group image
+            isInvitationOnly  optional boolean, defines whether users can join by request.
+            sort_field        optional string, specifies how shared items with the group are sorted.
+            sort_order        optional string, asc or desc for ascending or descending.
+            is_view_only      optional boolean, defines whether the group is searchable
+
+        Returns
+            a string that is a item id.
+        """      
+
+        
     def _delete_items(self, owner, item_ids):
         """ Internal: Deletes items from the portal. """
         item_ids = _unpack(item_ids, 'id')
         postdata = self._postdata()
         postdata['items'] = ','.join(item_ids)
         return self.con.post('content/users/' + owner + '/deleteItems', postdata)
-
 
 
     def delete_user(self, username, cascade=False, reassign_to=None):
@@ -295,6 +310,7 @@ class Portal(object):
                              self._postdata())
         if resp:
             return resp.get('success')
+
 
     def generate_token(self, username, password, expiration=60):
         """ Generates and returns a new token, but doesn't re-login. 

@@ -5,20 +5,34 @@ The ArcGIS Online & Portal toolkit contains a number of tools and scripts to adm
 #### Create ArcGIS Online/Portal Group
 Creates a ArcGIS Online or Portal for ArcGIS group. Sets up description, logo and members of the group.
 
-#### Add Users to ArcGIS Online/Portal Group (IN DEVELOPMENT)
-Adds a list of users to an ArcGIS Online or Portal for ArcGIS group.
-
-#### Add Users to ArcGIS for Portal Site (IN DEVELOPMENT)
-Imports a list of users provided in a CSV file to ArcGIS for Portal, assigning to roles and setting default password.  
+#### Add Users to Portal for ArcGIS Site 
+Imports a list of users provided in a CSV file to Portal for ArcGIS, assigning to roles and setting default password. Can be
+built-in or enteprise users.  
 
 
 ## Features
 
+* Add a number of users to a site at once.
+* Setup a number of groups.
+
 
 ## Requirements
 
+* ArcGIS Online
+	* Create ArcGIS Online/Portal Group
+
+* Portal for ArcGIS 10.2+ 
+	* Add Users to Portal for ArcGIS Site 
+	* Create ArcGIS Online/Portal Group
+
 
 ## Installation Instructions
+
+* Setup a script to run as a scheduled task
+	* Fork and then clone the repository or download the .zip file. 
+	* Edit the [batch file](/Examples) to be automated and change the parameters to suit your environment.
+	* Open Windows Task Scheduler and setup a new basic task.
+	* Set the task to execute the batch file at a specified time.
 
 
 ## Resources
