@@ -1,12 +1,11 @@
 #-------------------------------------------------------------
-# Name:       Add Users to Portal
-# Purpose:    Imports a list of users provided in a CSV file to Portal for ArcGIS, assigning to roles and setting default password. Can be
-#             built-in or enteprise users.    
+# Name:       Download Feature Layer
+# Purpose:    Downloads a feature layer from an ArcGIS Online site and optionally updates an existing dataset.  
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
-# Date Created:    16/05/2014
-# Last Updated:    29/08/2014
+# Date Created:    30/09/2014
+# Last Updated:    30/09/2014
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   Portal for ArcGIS 10.2+
+# ArcGIS Version:   ArcGIS Online
 # Python Version:   2.7
 #--------------------------------
 
@@ -18,8 +17,9 @@ import smtplib
 import arcpy
 import urllib
 import urllib2
+import zipfile
 import json
-import Queue
+import glob
 
 # Enable data to be overwritten
 arcpy.env.overwriteOutput = True
@@ -36,7 +36,7 @@ emailMessage = ""
 output = None
 
 # Start of main function
-def mainFunction(portalUrl, portalAdminName, portalAdminPassword, typeUsers, usersCSVFile): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(portalUrl, portalAdminName, portalAdminPassword, itemID): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # Logging
         if (enableLogging == "true"):
@@ -50,52 +50,90 @@ def mainFunction(portalUrl, portalAdminName, portalAdminPassword, typeUsers, use
         arcpy.AddMessage("Connecting to Portal - " + portalUrl + "...")
         # Generate token for portal
         token = generateToken(portalAdminName, portalAdminPassword, portalUrl)
-        
-        arcpy.AddMessage("Adding users to Portal...")
 
-        # Get user data from file and load users to be added into queue
-        usersData = getUserDataFromFile(usersCSVFile,typeUsers)
+        arcpy.AddMessage("Exporting feature layer to geodatabase. Item ID - " + itemID + "...")
 
-        # Go through each of the users in the queue
-        usersLeftInQueue = True
-        while usersLeftInQueue:
-            try:
-                # Set the provider names
-                if typeUsers.lower() == "enterprise":
-                    provider = "webadaptor"
-                else:
-                    provider = "arcgis"
-                    
-                userDict = usersData.get(False)
-                userDict['f'] = 'json'
-                userDict['token'] = token
-                userDict['provider'] = provider
-                params = urllib.urlencode(userDict)
+        # Setup parameters for export   
+        dict = {}
+        dict['f'] = 'json'
+        dict['token'] = token
+        dict['itemId'] = itemID
+        dict['exportFormat'] = "File Geodatabase"
+        params = urllib.urlencode(dict)
 
-                request = urllib2.Request(portalUrl + "/portaladmin/security/users/createUser?",params)
+        # Set the request to export
+        request = urllib2.Request(portalUrl + "/sharing/rest/content/users/" + portalAdminName + "/export",params)
 
-                # POST the create request
+        # POST the request - Creates a new item in the ArcGIS online site
+        response = urllib2.urlopen(request).read()
+        responseJSON = json.loads(response)
+
+        # Log results
+        if responseJSON.has_key('error'):
+            errDict = responseJSON['error']
+            message =  "Error Code: %s \n Message: %s" % (errDict['code'],
+            errDict['message'])
+            arcpy.AddError(message)
+        else:
+            jobId = responseJSON['jobId']
+            exportItemId = responseJSON['exportItemId']
+
+            # Setup parameters for status check   
+            dict = {}
+            dict['f'] = 'json'
+            dict['token'] = token
+            dict['jobType'] = "export"
+            dict['jobId'] = jobId
+            params = urllib.urlencode(dict)
+
+            # Set the request for status
+            request = urllib2.Request(portalUrl + "/sharing/rest/content/users/" + portalAdminName + "/items/" + exportItemId + "/status",params)
+
+            # POST the request - Get job info
+            response = urllib2.urlopen(request).read()
+            responseJSON = json.loads(response)
+            jobStatus = responseJSON['status']
+            
+            # While the request is still processing
+            while (jobStatus == "processing"):
+                request = urllib2.Request(portalUrl + "/sharing/rest/content/users/" + portalAdminName + "/items/" + exportItemId + "/status",params)
+                # POST the request - Get job info
                 response = urllib2.urlopen(request).read()
                 responseJSON = json.loads(response)
+                jobStatus = responseJSON['status']
+                
+                # Once processing has finished
+                if (jobStatus == "completed"):
+                    arcpy.AddMessage("Downloading geodatabase...")
 
-                # Log results
-                if responseJSON.has_key('error'):
-                    errDict = responseJSON['error']
-                    if int(errDict['code'])==498:
-                        message = "Token Expired. Getting new token... Username: " + userDict['username'] + " will be added later..."
-                        token = generateToken(username,password, portalUrl)
-                        usersData.put(userDict)
-                    else:
-                        message =  "Error Code: %s \n Message: %s" % (errDict['code'],
-                        errDict['message'])
-                    arcpy.AddError(message)
-                else:
-                    # Success
-                    if responseJSON.has_key('status'):
-                        resultStatus = responseJSON['status']
-                        arcpy.AddMessage("User: %s account created" % (userDict['username']))
-            except Queue.Empty:
-                  usersLeftInQueue = False
+                    dataURL = portalUrl + "/sharing/rest/content/items/" + exportItemId + "/data" + "?token=" + token
+                    
+                    # Download the file from the link
+                    file = urllib2.urlopen(dataURL)
+
+                    # Download in chunks
+                    fileChunk = 16 * 1024
+                    with open(os.path.join(arcpy.env.scratchFolder, "Data.zip"), 'wb') as output:
+                        while True:
+                            chunk = file.read(fileChunk)
+                            if not chunk:
+                                break
+                            # Write chunk to output file
+                            output.write(chunk)
+                    output.close()
+
+                    # Unzip the file to the scratch folder
+                    arcpy.AddMessage("Extracting zip file...")  
+                    zip = zipfile.ZipFile(os.path.join(arcpy.env.scratchFolder, "Data.zip"), mode="r")
+                    zip.extractall(arcpy.env.scratchFolder)
+
+                    # Get the newest unzipped database from the scratch folder
+                    database = max(glob.iglob(arcpy.env.scratchFolder + r"\*.gdb"), key=os.path.getmtime)
+
+                    # Assign the geodatabase workspace and load in the datasets to the lists
+                    arcpy.env.workspace = database
+                    featureclassList = arcpy.ListFeatureClasses()
+                    tableList = arcpy.ListTables()
         
         # --------------------------------------- End of code --------------------------------------- #  
             
@@ -153,61 +191,6 @@ def mainFunction(portalUrl, portalAdminName, portalAdminPassword, typeUsers, use
             # Send email
             sendEmail(errorMessage)            
 # End of main function
-
-
-# Start of function that loads all the user data in the input text file into a Python Queue.
-def getUserDataFromFile(inUserFile,provider):
-    usersQ = Queue.Queue()
-    keyParams = ['username', 'password', 'email', 'fullname','role','description']
-
-    inFileHandle = open(inUserFile, 'r')
-    userCount = 0
-    arcpy.AddMessage("Processing input users file at " + inUserFile + "...")
-    entryCount = 1;
-    for line in inFileHandle.readlines():
-        userParams = line.split('|')
-        userParamDict = {}
-        # If enterprise users
-        if provider.lower() == "enterprise":
-            if len(userParams) == 5:
-                for i in range (0,5):
-                    userParamDict[keyParams[0]] = userParams[0]  # Enterprise login
-                    userParamDict[keyParams[1]] = ""
-                    userParamDict[keyParams[2]] = userParams[1]  # Email
-                    userParamDict[keyParams[3]] = userParams[2]  # Name
-                    userParamDict[keyParams[4]] = userParams[3]  # Role
-                    userParamDict[keyParams[5]] = userParams[4].replace('\n','')  # Description
-                usersQ.put (userParamDict)
-                userCount = userCount + 1
-            else:
-                arcpy.AddError("The format for entry %s is invalid.  The format for enterprise accounts should be <login>|<email address>|<name>|<role>|<description>. \n "% (entryCount))
-        # If built-in users
-        elif provider.lower() == "built-in":
-            if len(userParams) == 6:
-                for i in range (0,6):
-                    userParamDict[keyParams[0]] = userParams[0]  # Account
-                    userParamDict[keyParams[1]] = userParams[1]  # Password
-                    userParamDict[keyParams[2]] = userParams[2]  # Email
-                    userParamDict[keyParams[3]] = userParams[3]  # Name
-                    userParamDict[keyParams[4]] = userParams[4]  # Role
-                    userParamDict[keyParams[5]] = userParams[5].replace('\n','')  # Description
-                usersQ.put (userParamDict)
-                userCount = userCount + 1
-            else:
-                arcpy.AddError("The format for entry %s is invalid.  The format for built-in portal accounts should be <account>|<password>|<email address>|<name>|<role>|<description>.  \n "% (entryCount))
-        # Else provider not specified correctly
-        else:
-            arcpy.AddError("The provider is incorrect...")
-        entryCount = entryCount +1
-        # If the user roles are not specified correctly
-        if not ((userParamDict[keyParams[4]].lower()== "org_user") or (userParamDict[keyParams[4]].lower()=="org_publisher") or (userParamDict[keyParams[4]].lower()== "org_admin")):
-            arcpy.AddError("The value for the user role %s in users text file is invalid.  Accepted values are org_user or org_publisher or org_admin. " % (userParamDict[keyParams[4]]))
-    inFileHandle.close()
-    # Create users and report results
-    arcpy.AddMessage("Total members to be added: " + str(userCount))
-
-    return usersQ
-# End of function that loads all the user data in the input text file into a Python Queue.
 
 
 # Start of get token function
