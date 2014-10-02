@@ -9,6 +9,12 @@ Creates a ArcGIS Online or Portal for ArcGIS group. Sets up description, logo an
 Imports a list of users provided in a CSV file to Portal for ArcGIS, assigning to roles and setting default password. Can be
 built-in or enteprise users.  
 
+#### Download Feature Layer
+Downloads a feature layer from an ArcGIS Online site and optionally updates an existing dataset. Two update options:
+        
+* Existing Mode - Will delete and append records, so field names need to be the same.
+             
+* New Mode - Copies data over (including archive datasets if needed). Requires no locks on geodatabase datasets being overwritten.  
 
 ## Features
 

@@ -1,9 +1,11 @@
 #-------------------------------------------------------------
 # Name:       Download Feature Layer
-# Purpose:    Downloads a feature layer from an ArcGIS Online site and optionally updates an existing dataset.  
+# Purpose:    Downloads a feature layer from an ArcGIS Online site and optionally updates an existing dataset. Two update options:
+#             Existing Mode - Will delete and append records, so field names need to be the same.
+#             New Mode - Copies data over. Requires no locks on geodatabase datasets being overwritten.      
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    30/09/2014
-# Last Updated:    30/09/2014
+# Last Updated:    02/10/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   ArcGIS Online
 # Python Version:   2.7
@@ -36,7 +38,7 @@ emailMessage = ""
 output = None
 
 # Start of main function
-def mainFunction(portalUrl, portalAdminName, portalAdminPassword, itemID): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(portalUrl, portalAdminName, portalAdminPassword, itemID, geodatabase, updateMode): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # Logging
         if (enableLogging == "true"):
@@ -122,6 +124,19 @@ def mainFunction(portalUrl, portalAdminName, portalAdminPassword, itemID): # Get
                             output.write(chunk)
                     output.close()
 
+                    # Setup parameters for deleting the item that was created
+                    dict = {}
+                    dict['f'] = 'json'
+                    dict['token'] = token
+                    params = urllib.urlencode(dict)
+
+                    # Set the request to export
+                    request = urllib2.Request(portalUrl + "/sharing/rest/content/users/" + portalAdminName + "/items/" + exportItemId + "/delete",params)
+
+                    # POST the request - Deletes the item that was created
+                    response = urllib2.urlopen(request).read()
+                    responseJSON = json.loads(response)
+        
                     # Unzip the file to the scratch folder
                     arcpy.AddMessage("Extracting zip file...")  
                     zip = zipfile.ZipFile(os.path.join(arcpy.env.scratchFolder, "Data.zip"), mode="r")
@@ -134,7 +149,51 @@ def mainFunction(portalUrl, portalAdminName, portalAdminPassword, itemID): # Get
                     arcpy.env.workspace = database
                     featureclassList = arcpy.ListFeatureClasses()
                     tableList = arcpy.ListTables()
-        
+
+                    arcpy.AddMessage("Copying dataset(s) into geodatabase...")        
+                    # Load the feature classes into the geodatabase if at least one is in the geodatabase provided
+                    if (len(featureclassList) > 0):        
+                        # Loop through the feature classes
+                        for eachFeatureclass in featureclassList:
+                           # Create a Describe object from the dataset
+                           describeDataset = arcpy.Describe(eachFeatureclass)
+                           # If update mode is then copy, otherwise delete and appending records                
+                           if (updateMode == "New"):
+                               # Copy feature class into geodatabase using the same dataset name
+                               arcpy.CopyFeatures_management(eachFeatureclass, os.path.join(geodatabase, describeDataset.name), "", "0", "0", "0")
+                           else:
+                                # If dataset exists in geodatabase, delete features and load in new data
+                                if arcpy.Exists(os.path.join(geodatabase, eachFeatureclass)):
+                                    arcpy.DeleteFeatures_management(os.path.join(geodatabase, eachFeatureclass))
+                                    arcpy.Append_management(os.path.join(arcpy.env.workspace, eachFeatureclass), os.path.join(geodatabase, eachFeatureclass), "NO_TEST", "", "")
+                                else:
+                                    # Log warning
+                                    arcpy.AddWarning("Warning: " + os.path.join(geodatabase, eachFeatureclass) + " does not exist and won't be updated")
+                                    # Logging
+                                    if (enableLogging == "true"):
+                                        logger.warning(os.path.join(geodatabase, eachFeatureclass) + " does not exist and won't be updated")
+                                        
+                    if (len(tableList) > 0):    
+                        # Loop through of the tables
+                        for eachTable in tableList:
+                           # Create a Describe object from the dataset
+                           describeDataset = arcpy.Describe(eachTable)
+                           # If update mode is then copy, otherwise delete and appending records                
+                           if (updateMode == "New"):               
+                               # Copy feature class into geodatabase using the same dataset name
+                               arcpy.TableSelect_analysis(eachTable, os.path.join(geodatabase, describeDataset.name), "")
+                           else:
+                                # If dataset exists in geodatabase, delete features and load in new data
+                                if arcpy.Exists(os.path.join(geodatabase, eachTable)):
+                                    arcpy.DeleteRows_management(os.path.join(geodatabase, eachTable))
+                                    arcpy.Append_management(os.path.join(arcpy.env.workspace, eachTable), os.path.join(geodatabase, eachTable), "NO_TEST", "", "")
+                                else:
+                                    # Log warning
+                                    arcpy.AddWarning("Warning: " + os.path.join(geodatabase, eachTable) + " does not exist and won't be updated")
+                                    # Logging
+                                    if (enableLogging == "true"):
+                                        logger.warning(os.path.join(geodatabase, eachTable) + " does not exist and won't be updated")
+                            
         # --------------------------------------- End of code --------------------------------------- #  
             
         # If called from gp tool return the arcpy parameter   
