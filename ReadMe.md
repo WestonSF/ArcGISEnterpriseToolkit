@@ -14,7 +14,7 @@ Downloads a feature layer from an ArcGIS Online site and optionally updates an e
         
 * Existing Mode - Will delete and append records, so field names need to be the same.
              
-* New Mode - Copies data over (including archive datasets if needed). Requires no locks on geodatabase datasets being overwritten.  
+* New Mode - Copies data over. Requires no locks on geodatabase datasets being overwritten.  
 
 ## Features
 
