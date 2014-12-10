@@ -5,7 +5,7 @@
 #             New Mode - Copies data over. Requires no locks on geodatabase datasets being overwritten.      
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    30/09/2014
-# Last Updated:    02/10/2014
+# Last Updated:    11/12/2014
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   ArcGIS Online
 # Python Version:   2.7
@@ -27,14 +27,17 @@ import glob
 arcpy.env.overwriteOutput = True
 
 # Set global variables
-enableLogging = "false" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
-logFile = "" # os.path.join(os.path.dirname(__file__), "Example.log")
+enableLogging = "true" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
+logFile = os.path.join(os.path.dirname(__file__), "Logs\DownloadFeatureLayer.log") # os.path.join(os.path.dirname(__file__), "Example.log")
 sendErrorEmail = "false"
 emailTo = ""
 emailUser = ""
 emailPassword = ""
 emailSubject = ""
 emailMessage = ""
+enableProxy = "true"
+requestProtocol = "https" # http or https
+proxyURL = "http://eagle_hartt:E@gleT3chnology@webmarshal:8080"
 output = None
 
 # Start of main function
@@ -48,7 +51,7 @@ def mainFunction(portalUrl, portalAdminName, portalAdminPassword, itemID, geodat
             logger.info("Process started.")
             
         # --------------------------------------- Start of code --------------------------------------- #
-
+    
         arcpy.AddMessage("Connecting to Portal - " + portalUrl + "...")
         # Generate token for portal
         token = generateToken(portalAdminName, portalAdminPassword, portalUrl)
@@ -157,9 +160,11 @@ def mainFunction(portalUrl, portalAdminName, portalAdminPassword, itemID, geodat
                         for eachFeatureclass in featureclassList:
                            # Create a Describe object from the dataset
                            describeDataset = arcpy.Describe(eachFeatureclass)
+
                            # If update mode is then copy, otherwise delete and appending records                
                            if (updateMode == "New"):
                                # Copy feature class into geodatabase using the same dataset name
+                               arcpy.AddMessage(os.path.join(geodatabase, describeDataset.name))
                                arcpy.CopyFeatures_management(eachFeatureclass, os.path.join(geodatabase, describeDataset.name), "", "0", "0", "0")
                            else:
                                 # If dataset exists in geodatabase, delete features and load in new data
@@ -193,7 +198,11 @@ def mainFunction(portalUrl, portalAdminName, portalAdminPassword, itemID, geodat
                                     # Logging
                                     if (enableLogging == "true"):
                                         logger.warning(os.path.join(geodatabase, eachTable) + " does not exist and won't be updated")
-                            
+
+        # Custom code for HCC - Compress geodatabase
+        arcpy.AddMessage("Compressing geodatabase...")
+        arcpy.Compress_management("Database Connections\\council (sde).sde")
+        
         # --------------------------------------- End of code --------------------------------------- #  
             
         # If called from gp tool return the arcpy parameter   
@@ -263,9 +272,10 @@ def generateToken(username, password, portalUrl):
                                    'f' : 'json'})
     try:
         response = urllib2.urlopen(portalUrl + '/sharing/rest/generateToken?',
-                              parameters).read()      
+                              parameters).read()     
     except Exception as e:
         arcpy.AddError( 'Unable to open the url %s/sharing/rest/generateToken' % (portalUrl))
+        arcpy.AddError(e)
     responseJSON =  json.loads(response.strip(' \t\n\r'))
     # Log results
     if responseJSON.has_key('error'):
@@ -327,5 +337,14 @@ if __name__ == '__main__':
     # Arguments are optional - If running from ArcGIS Desktop tool, parameters will be loaded into *argv
     argv = tuple(arcpy.GetParameterAsText(i)
         for i in range(arcpy.GetArgumentCount()))
+
+    # Setup the use of a proxy for requests
+    if (enableProxy == "true"):
+        # Setup the proxy
+        proxy = urllib2.ProxyHandler({requestProtocol : proxyURL})
+        openURL = urllib2.build_opener(proxy)
+        # Install the proxy
+        urllib2.install_opener(openURL)
+            
     mainFunction(*argv)
     

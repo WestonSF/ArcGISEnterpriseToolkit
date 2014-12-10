@@ -5,7 +5,7 @@
 # Date Created:    03/04/2014
 # Last Updated:    03/04/2014
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   ArcGIS Online or Portal for ArcGIS
+# ArcGIS Version:   ArcGIS Online or Portal for ArcGIS 10.2+
 # Python Version:   2.7
 #--------------------------------
 
