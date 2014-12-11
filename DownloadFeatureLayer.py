@@ -27,7 +27,7 @@ import glob
 arcpy.env.overwriteOutput = True
 
 # Set global variables
-enableLogging = "true" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
+enableLogging = "false" # Use logger.info("Example..."), logger.warning("Example..."), logger.error("Example...")
 logFile = os.path.join(os.path.dirname(__file__), "Logs\DownloadFeatureLayer.log") # os.path.join(os.path.dirname(__file__), "Example.log")
 sendErrorEmail = "false"
 emailTo = ""
@@ -35,9 +35,9 @@ emailUser = ""
 emailPassword = ""
 emailSubject = ""
 emailMessage = ""
-enableProxy = "true"
+enableProxy = "false"
 requestProtocol = "https" # http or https
-proxyURL = "http://eagle_hartt:E@gleT3chnology@webmarshal:8080"
+proxyURL = ""
 output = None
 
 # Start of main function
@@ -198,10 +198,6 @@ def mainFunction(portalUrl, portalAdminName, portalAdminPassword, itemID, geodat
                                     # Logging
                                     if (enableLogging == "true"):
                                         logger.warning(os.path.join(geodatabase, eachTable) + " does not exist and won't be updated")
-
-        # Custom code for HCC - Compress geodatabase
-        arcpy.AddMessage("Compressing geodatabase...")
-        arcpy.Compress_management("Database Connections\\council (sde).sde")
         
         # --------------------------------------- End of code --------------------------------------- #  
             
