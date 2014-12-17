@@ -101,6 +101,9 @@ def mainFunction(portalUrl, portalAdminName, portalAdminPassword, itemID, geodat
             
             # While the request is still processing
             while (jobStatus == "processing"):
+                # Pause every 10 seconds
+                time.sleep(10)  
+                
                 request = urllib2.Request(portalUrl + "/sharing/rest/content/users/" + portalAdminName + "/items/" + exportItemId + "/status",params)
                 # POST the request - Get job info
                 response = urllib2.urlopen(request).read()
