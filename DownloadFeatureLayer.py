@@ -22,6 +22,7 @@ import urllib2
 import zipfile
 import json
 import glob
+import time
 
 # Enable data to be overwritten
 arcpy.env.overwriteOutput = True
