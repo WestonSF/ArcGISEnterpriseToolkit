@@ -16,6 +16,10 @@ Downloads a feature layer from an ArcGIS Online site and optionally updates an e
              
 * New Mode - Copies data over. Requires no locks on geodatabase datasets being overwritten.  
 
+#### Register Service
+Registers a service with an ArcGIS Online site.  
+
+
 ## Features
 
 * Add a number of users to a site at once.

@@ -1,11 +1,11 @@
 #-------------------------------------------------------------
-# Name:       Create ArcGIS Online/Portal Group
-# Purpose:    Creates a ArcGIS Online or Portal for ArcGIS group. Sets up description, logo and members of the group.      
+# Name:       Register Service
+# Purpose:    Registers a service with an ArcGIS Online site. 
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
-# Date Created:    03/04/2014
-# Last Updated:    24/03/2015
+# Date Created:    13/03/2015
+# Last Updated:    23/03/2015
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   ArcGIS Online or Portal for ArcGIS 10.2+
+# ArcGIS Version:   10.3+
 # Python Version:   2.7
 #--------------------------------
 
@@ -37,7 +37,7 @@ proxyURL = ""
 output = None
 
 # Start of main function
-def mainFunction(portalUrl, portalAdminName, portalAdminPassword, groupName, groupSummary, groupDescription, groupTags, groupAccess, groupThumbnail, userNames): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(portalUrl, portalAdminName, portalAdminPassword, service, serviceType, serviceUsername, servicePassword, serviceTitle, serviceSummary, serviceDescription, serviceTags, serviceAccess, serviceThumbnail): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # --------------------------------------- Start of code --------------------------------------- #
 
@@ -48,17 +48,20 @@ def mainFunction(portalUrl, portalAdminName, portalAdminPassword, groupName, gro
         # Setup parameters for request 
         dict = {}
         dict['f'] = 'json'
-        dict['token'] = token        
-        dict['title'] = groupName
-        dict['snippet'] = groupSummary
-        dict['description'] = groupDescription
-        dict['tags'] = groupTags
-        dict['access'] = groupAccess  
-        dict['thumbnail'] = groupThumbnail        
-        params = urllib.urlencode(dict)
+        dict['token'] = token
+        dict['url'] = service
+        dict['type'] = serviceType
+        dict['serviceUsername'] = serviceUsername
+        dict['servicePassword'] = servicePassword         
+        dict['title'] = serviceTitle
+        dict['snippet'] = serviceSummary
+        dict['description'] = serviceDescription
+        dict['tags'] = serviceTags   
+        dict['thumbnail'] = serviceThumbnail
+        params = urllib.urlencode(dict)       
 
         # Setup the request
-        request = urllib2.Request(portalUrl + "/sharing/rest/community/createGroup",params)
+        request = urllib2.Request(portalUrl + "/sharing/rest/content/users/" + portalAdminName + "/addItem",params)
 
         # POST the request
         response = urllib2.urlopen(request).read()
@@ -71,23 +74,30 @@ def mainFunction(portalUrl, portalAdminName, portalAdminPassword, groupName, gro
             errDict['message'])
             arcpy.AddError(message)
         else:
-            groupId = responseJSON['group']['id']
-            arcpy.AddMessage("New group created. Item ID - " + groupId + "...")
+            itemId = responseJSON['id']
+            arcpy.AddMessage("New item created. Item ID - " + itemId + "...")
 
             # Setup parameters for request 
             dict = {}
             dict['f'] = 'json'
             dict['token'] = token
-            dict['users'] = userNames                 
+            dict['everyone'] = "false"
+            dict['org'] = "false"
+            if (serviceAccess.lower() == "public"):
+                dict['everyone'] = "true"
+                dict['org'] = "true"                
+            if (serviceAccess.lower() == "org"):
+                dict['everyone'] = "false"
+                dict['org'] = "true"            
             params = urllib.urlencode(dict)
-
+        
             # Setup the request
-            request = urllib2.Request(portalUrl + "/sharing/rest/community/groups/" + groupId + "/addUsers",params)
+            request = urllib2.Request(portalUrl + "/sharing/rest/content/users/" + portalAdminName + "/items/" + itemId + "/share",params)
 
             # POST the request
             response = urllib2.urlopen(request).read()
             responseJSON = json.loads(response)
-
+            
             # Log results
             if responseJSON.has_key('error'):
                 errDict = responseJSON['error']
@@ -95,8 +105,8 @@ def mainFunction(portalUrl, portalAdminName, portalAdminPassword, groupName, gro
                 errDict['message'])
                 arcpy.AddError(message)
             else:
-                arcpy.AddMessage("Users added to group - " + userNames + "...")
-                       
+                arcpy.AddMessage("Item shared to " + serviceAccess + ". Item ID - " + itemId + "...")
+                
         # --------------------------------------- End of code --------------------------------------- #  
             
         # If called from gp tool return the arcpy parameter   
@@ -249,3 +259,4 @@ if __name__ == '__main__':
         # Install the proxy
         urllib2.install_opener(openURL)
     mainFunction(*argv)
+    
