@@ -4,9 +4,9 @@
 #             built-in or enteprise users.    
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    16/05/2014
-# Last Updated:    29/08/2014
+# Last Updated:    13/10/2015
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   Portal for ArcGIS 10.2+
+# ArcGIS Version:   Portal for ArcGIS 10.3+
 # Python Version:   2.7
 #--------------------------------
 
@@ -72,7 +72,7 @@ def mainFunction(portalUrl, portalAdminName, portalAdminPassword, typeUsers, use
                 userDict['provider'] = provider
                 params = urllib.urlencode(userDict)
 
-                request = urllib2.Request(portalUrl + "/portaladmin/security/users/createUser?",params)
+                request = urllib2.Request(portalUrl + "/portaladmin/security/users/createUser?",params, { 'Referer' : portalUrl })
 
                 # POST the create request
                 response = urllib2.urlopen(request).read()

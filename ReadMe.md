@@ -10,7 +10,7 @@ Imports a list of users provided in a CSV file to Portal for ArcGIS, assigning t
 built-in or enteprise users.  
 
 #### Download Feature Layer
-Downloads a feature layer from an ArcGIS Online site and optionally updates an existing dataset. Two update options:
+Downloads a feature service (As file geodatabase, Shapefile or CSV) from a portal site and optionally updates an existing dataset. Two update options:
         
 * Existing Mode - Will delete and append records, so field names need to be the same.
              
