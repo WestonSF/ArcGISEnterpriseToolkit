@@ -19,17 +19,25 @@ Downloads a feature service (As file geodatabase, Shapefile or CSV) from a porta
 #### Register Service
 Registers a service with an ArcGIS Online site.  
 
+#### Portal Services Report
+Queries an ArcGIS Online/Portal for ArcGIS site to find all services that are being used in web maps then aggregates these in a CSV file. This tool needs to be run as an ArcGIS Online/Portal administrator.
+
 
 ## Features
 
 * Add a number of users to a site at once.
 * Setup a number of groups.
+* Automate the backup of a hosted feature service.
+* Find all service URLs being used by an organisation.
 
 
 ## Requirements
 
 * ArcGIS Online
 	* Create ArcGIS Online/Portal Group
+	* Download Feature Layer
+	* Register Service
+	* Portal Services Report
 
 * Portal for ArcGIS 10.2+ 
 	* Add Users to Portal for ArcGIS Site 
@@ -66,7 +74,7 @@ Anyone and everyone is welcome to contribute.
 
 
 ## Licensing
-Copyright 2014 - Shaun Weston
+Copyright 2016 - Shaun Weston
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

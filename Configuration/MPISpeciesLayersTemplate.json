@@ -1,0 +1,132 @@
+{
+	"layers": [{
+		"id": <LAYERID>,
+		"popupInfo": {
+			"title": "{LayerName} - {DistributionType}",
+			"fieldInfos": [{
+				"fieldName": "PortalUrl",
+				"label": "Metadata",
+				"isEditable": false,
+				"visible": true,
+				"stringFieldOption": "textbox"
+			}, {
+				"stringFieldOption": "textbox",
+				"tooltip": "",
+				"label": "Layer",
+				"visible": true,
+				"fieldName": "LayerName"
+			}, {
+				"fieldName": "DistributionType",
+				"label": "Distribution Type",
+				"isEditable": false,
+				"visible": true,
+				"stringFieldOption": "textbox"
+			}, {
+				"fieldName": "SpeciesScientificName",
+				"label": "Species Scientific Name",
+				"isEditable": false,
+				"visible": true,
+				"stringFieldOption": "textbox"
+			}, {
+				"fieldName": "ObjectReferences",
+				"label": "Object References",
+				"isEditable": false,
+				"visible": true,
+				"stringFieldOption": "textbox"
+			}, {
+				"fieldName": "Alert",
+				"label": "Alert",
+				"isEditable": false,
+				"visible": true,
+				"stringFieldOption": "textbox"
+			}, {
+				"fieldName": "SpeciesCode",
+				"label": "Species Code",
+				"isEditable": false,
+				"visible": true,
+				"stringFieldOption": "textbox"
+			}, {
+				"fieldName": "AccuracyExplanation",
+				"label": "Accuracy Explanation",
+				"isEditable": false,
+				"visible": true,
+				"stringFieldOption": "textbox"
+			}, {
+				"fieldName": "SpeciesCommonName",
+				"label": "Species Common Name",
+				"isEditable": false,
+				"visible": true,
+				"stringFieldOption": "textbox"
+			}, {
+				"fieldName": "ScientificContact",
+				"label": "Scientific Contact",
+				"isEditable": false,
+				"visible": true,
+				"stringFieldOption": "textbox"
+			}, {
+				"fieldName": "ObjectSecurity",
+				"label": "Object Security",
+				"isEditable": false,
+				"visible": true,
+				"stringFieldOption": "textbox"
+			}, {
+				"fieldName": "SpeciesMaoriName",
+				"label": "Species Maori Name",
+				"isEditable": false,
+				"visible": true,
+				"stringFieldOption": "textbox"
+			}, {
+				"fieldName": "TemporalExtent",
+				"label": "Temporal Extent",
+				"isEditable": false,
+				"visible": true,
+				"stringFieldOption": "textbox"
+			}, {
+				"fieldName": "HabitatType",
+				"label": "Habitat Type",
+				"isEditable": false,
+				"visible": true,
+				"stringFieldOption": "textbox"
+			}, {
+				"fieldName": "ObjectName",
+				"label": "Object Name",
+				"isEditable": false,
+				"visible": true,
+				"stringFieldOption": "textbox"
+			}, {
+				"fieldName": "PositionalAccuracy",
+				"label": "Positional Accuracy",
+				"isEditable": false,
+				"visible": true,
+				"stringFieldOption": "textbox"
+			}, {
+				"fieldName": "AlertWarning",
+				"label": "Alert Warning",
+				"isEditable": false,
+				"visible": true,
+				"stringFieldOption": "textbox"
+			}, {
+				"fieldName": "EndangeredStatus",
+				"label": "Endangered Status",
+				"isEditable": false,
+				"visible": true,
+				"stringFieldOption": "textbox"
+			}, {
+				"fieldName": "SpeciesGroup",
+				"label": "Species Group",
+				"isEditable": false,
+				"visible": true,
+				"stringFieldOption": "textbox"
+			}, {
+				"fieldName": "Keywords",
+				"label": "Keywords",
+				"isEditable": false,
+				"visible": true,
+				"stringFieldOption": "textbox"
+			}],
+			"description": null,
+			"showAttachments": true,
+			"mediaInfos": []
+		}
+	}]
+}
