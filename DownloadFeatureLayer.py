@@ -2,7 +2,7 @@
 # Name:       Download Feature Layer
 # Purpose:    Downloads a feature service (As file geodatabase, shapefile or CSV) from a portal site and optionally updates an existing dataset. Two update options:
 #             Existing Mode - Will delete and append records, so field names need to be the same.
-#             New Mode - Copies data over. Requires no locks on geodatabase datasets being overwritten.      
+#             New Mode - Copies data over. Requires no locks on geodatabase datasets being overwritten.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    30/09/2014
 # Last Updated:    01/03/2016
@@ -62,7 +62,7 @@ import tempfile
 
 
 # Start of main function
-def mainFunction(portalUrl,portalAdminName,portalAdminPassword,itemIDs,workspace,outputFormat,updateMode): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(portalUrl,portalAdminName,portalAdminPassword,itemIDs,workspace,outputFormat,updateMode): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)
     try:
         # --------------------------------------- Start of code --------------------------------------- #
         # If ArcGIS desktop installed
@@ -85,7 +85,7 @@ def mainFunction(portalUrl,portalAdminName,portalAdminPassword,itemIDs,workspace
         for itemID in itemIDs:
             printMessage("Exporting feature layer to " + outputFormat + ". Item ID - " + itemID + "...","info")
 
-            # Setup parameters for export   
+            # Setup parameters for export
             dict = {}
             dict['f'] = 'json'
             dict['token'] = token
@@ -101,7 +101,7 @@ def mainFunction(portalUrl,portalAdminName,portalAdminPassword,itemIDs,workspace
                 # Encode parameters
                 params = urllib.urlencode(dict)
             params = params.encode('utf-8')
-        
+
             # POST the request - Creates a new item in the ArcGIS online site
             requestURL = urllib2.Request(portalUrl + "/sharing/rest/content/users/" + portalAdminName + "/export",params)
             response = urllib2.urlopen(requestURL)
@@ -114,7 +114,7 @@ def mainFunction(portalUrl,portalAdminName,portalAdminPassword,itemIDs,workspace
                 # Python 2.x
                 # Read json response
                 responseJSON = json.loads(response.read())
-        
+
             # Log results
             if "error" in responseJSON:
                 errDict = responseJSON['error']
@@ -124,8 +124,8 @@ def mainFunction(portalUrl,portalAdminName,portalAdminPassword,itemIDs,workspace
             else:
                 jobId = responseJSON.get('jobId')
                 exportItemId = responseJSON.get('exportItemId')
-        
-                # Setup parameters for status check   
+
+                # Setup parameters for status check
                 dict = {}
                 dict['f'] = 'json'
                 dict['token'] = token
@@ -153,14 +153,14 @@ def mainFunction(portalUrl,portalAdminName,portalAdminPassword,itemIDs,workspace
                 else:
                     # Python 2.x
                     # Read json response
-                    responseJSON = json.loads(response.read())   
+                    responseJSON = json.loads(response.read())
                 jobStatus = responseJSON.get('status')
 
                 # While the request is still processing or if it has already completed
-                while ((jobStatus.lower() == "processing") or (jobStatus.lower() == "completed")):
+                while (jobStatus.lower() == "processing"):
                     # Pause every 10 seconds
-                    time.sleep(10)  
-                   
+                    time.sleep(10)
+
                     requestURL = urllib2.Request(portalUrl + "/sharing/rest/content/users/" + portalAdminName + "/items/" + exportItemId + "/status",params)
                     # POST the request - Get job info
                     response = urllib2.urlopen(requestURL)
@@ -173,18 +173,18 @@ def mainFunction(portalUrl,portalAdminName,portalAdminPassword,itemIDs,workspace
                         # Python 2.x
                         # Read json response
                         responseJSON = json.loads(response.read())
-                
+
                     jobStatus = responseJSON['status']
-              
+
                     # Once processing has finished
                     if (jobStatus.lower() == "completed"):
                         printMessage("Downloading data zip file to temporary directory...","info")
 
                         dataURL = portalUrl + "/sharing/rest/content/items/" + exportItemId + "/data" + "?token=" + token
-                        
+
                         # Download the file from the link
                         file = urllib2.urlopen(dataURL)
-        
+
                         # Download in chunks
                         fileChunk = 16 * 1024
                         with open(os.path.join(tempFolder, "Data.zip"), 'wb') as output:
@@ -210,7 +210,7 @@ def mainFunction(portalUrl,portalAdminName,portalAdminPassword,itemIDs,workspace
                             # Encode parameters
                             params = urllib.urlencode(dict)
                         params = params.encode('utf-8')
-                
+
                         # Set the request to export
                         requestURL = urllib2.Request(portalUrl + "/sharing/rest/content/users/" + portalAdminName + "/items/" + exportItemId + "/delete",params)
 
@@ -241,15 +241,15 @@ def mainFunction(portalUrl,portalAdminName,portalAdminPassword,itemIDs,workspace
                             featureclassList = arcpy.ListFeatureClasses()
                             tableList = arcpy.ListTables()
 
-                            printMessage("Copying dataset(s) into geodatabase " + workspace + "...","info")        
+                            printMessage("Copying dataset(s) into geodatabase " + workspace + "...","info")
                             # Load the feature classes into the geodatabase if at least one is in the geodatabase provided
-                            if (len(featureclassList) > 0):        
+                            if (len(featureclassList) > 0):
                                 # Loop through the feature classes
                                 for eachFeatureclass in featureclassList:
                                    # Create a Describe object from the dataset
                                    describeDataset = arcpy.Describe(eachFeatureclass)
 
-                                   # If update mode is then copy, otherwise delete and appending records                
+                                   # If update mode is then copy, otherwise delete and appending records
                                    if (updateMode == "New"):
                                        # Copy feature class into geodatabase using the same dataset name
                                        arcpy.CopyFeatures_management(eachFeatureclass, os.path.join(workspace, describeDataset.name), "", "0", "0", "0")
@@ -264,14 +264,14 @@ def mainFunction(portalUrl,portalAdminName,portalAdminPassword,itemIDs,workspace
                                             # Logging
                                             if (enableLogging == "true"):
                                                 logger.warning(os.path.join(workspace, eachFeatureclass) + " does not exist and won't be updated")
-                                                
-                            if (len(tableList) > 0):    
+
+                            if (len(tableList) > 0):
                                 # Loop through of the tables
                                 for eachTable in tableList:
                                    # Create a Describe object from the dataset
                                    describeDataset = arcpy.Describe(eachTable)
-                                   # If update mode is then copy, otherwise delete and appending records                
-                                   if (updateMode == "New"):               
+                                   # If update mode is then copy, otherwise delete and appending records
+                                   if (updateMode == "New"):
                                        # Copy feature class into geodatabase using the same dataset name
                                        arcpy.TableSelect_analysis(eachTable, os.path.join(workspace, describeDataset.name), "")
                                    else:
@@ -308,11 +308,11 @@ def mainFunction(portalUrl,portalAdminName,portalAdminPassword,itemIDs,workspace
                                 arcpy.CopyFeatures_management(shapefile, os.path.join(workspace, (describeDataset.name).replace(".shp", "").replace(" ", "_")), "", "0", "0", "0")
                             # ArcGIS desktop not installed
                             else:
-                                # Unzip the file direct to the workspace folder                            
+                                # Unzip the file direct to the workspace folder
                                 zip = zipfile.ZipFile(os.path.join(tempFolder, "Data.zip"), mode="r")
                                 zip.extractall(workspace)
-        # --------------------------------------- End of code --------------------------------------- #    
-        # If called from gp tool return the arcpy parameter   
+        # --------------------------------------- End of code --------------------------------------- #
+        # If called from gp tool return the arcpy parameter
         if __name__ == '__main__':
             # Return the output if there is any
             if output:
@@ -321,45 +321,45 @@ def mainFunction(portalUrl,portalAdminName,portalAdminPassword,itemIDs,workspace
                     arcpy.SetParameterAsText(1, output)
                 # ArcGIS desktop not installed
                 else:
-                    return output 
-        # Otherwise return the result          
+                    return output
+        # Otherwise return the result
         else:
             # Return the output if there is any
             if output:
-                return output      
+                return output
         # Logging
         if (enableLogging == "true"):
             # Log end of process
             logger.info("Process ended.")
-            # Remove file handler and close log file        
+            # Remove file handler and close log file
             logMessage.flush()
             logMessage.close()
             logger.handlers = []
     # If arcpy error
-    except arcpy.ExecuteError:           
+    except arcpy.ExecuteError:
         # Build and show the error message
-        errorMessage = arcpy.GetMessages(2)   
-        printMessage(errorMessage,"error")           
+        errorMessage = arcpy.GetMessages(2)
+        printMessage(errorMessage,"error")
         # Logging
         if (enableLogging == "true"):
-            # Log error          
+            # Log error
             logger.error(errorMessage)
             # Log end of process
-            logger.info("Process ended.")            
-            # Remove file handler and close log file        
+            logger.info("Process ended.")
+            # Remove file handler and close log file
             logMessage.flush()
             logMessage.close()
-            logger.handlers = []   
+            logger.handlers = []
         if (sendErrorEmail == "true"):
             # Send email
             sendEmail(errorMessage)
     # If python error
     except Exception as e:
-        errorMessage = ""         
+        errorMessage = ""
         # Build and show the error message
         # If many arguments
         if (e.args):
-            for i in range(len(e.args)):        
+            for i in range(len(e.args)):
                 if (i == 0):
                     # Python version check
                     if sys.version_info[0] >= 3:
@@ -382,17 +382,17 @@ def mainFunction(portalUrl,portalAdminName,portalAdminPassword,itemIDs,workspace
         printMessage(errorMessage,"error")
         # Logging
         if (enableLogging == "true"):
-            # Log error            
+            # Log error
             logger.error(errorMessage)
             # Log end of process
-            logger.info("Process ended.")            
-            # Remove file handler and close log file        
+            logger.info("Process ended.")
+            # Remove file handler and close log file
             logMessage.flush()
             logMessage.close()
-            logger.handlers = []   
+            logger.handlers = []
         if (sendErrorEmail == "true"):
             # Send email
-            sendEmail(errorMessage)            
+            sendEmail(errorMessage)
 # End of main function
 
 
@@ -420,7 +420,7 @@ def generateToken(username, password, portalUrl):
     parameters = parameters.encode('utf-8')
     try:
         urllib2.urlopen(portalUrl + '/sharing/rest/generateToken?',parameters)
-        response = urllib2.urlopen(portalUrl + '/sharing/rest/generateToken?',parameters) 
+        response = urllib2.urlopen(portalUrl + '/sharing/rest/generateToken?',parameters)
     except Exception as e:
         printMessage( 'Unable to open the url %s/sharing/rest/generateToken' % (portalUrl),'error')
         printMessage(e,'error')
@@ -478,9 +478,9 @@ def setLogging(logFile):
     # Add formatter to log message handler
     logMessage.setFormatter(logFormat)
     # Add log message handler to logger
-    logger.addHandler(logMessage) 
+    logger.addHandler(logMessage)
 
-    return logger, logMessage               
+    return logger, logMessage
 # End of set logging function
 
 
@@ -489,9 +489,9 @@ def sendEmail(message):
     # Send an email
     printMessage("Sending email...","info")
     # Server and port information
-    smtpServer = smtplib.SMTP(emailServerName,emailServerPort) 
+    smtpServer = smtplib.SMTP(emailServerName,emailServerPort)
     smtpServer.ehlo()
-    smtpServer.starttls() 
+    smtpServer.starttls()
     smtpServer.ehlo
     # Login with sender email address and password
     smtpServer.login(emailUser, emailPassword)
@@ -499,18 +499,18 @@ def sendEmail(message):
     header = 'To:' + emailTo + '\n' + 'From: ' + emailUser + '\n' + 'Subject:' + emailSubject + '\n'
     body = header + '\n' + emailMessage + '\n' + '\n' + message
     # Send the email and close the connection
-    smtpServer.sendmail(emailUser, emailTo, body)    
+    smtpServer.sendmail(emailUser, emailTo, body)
 # End of send email function
 
 
 # This test allows the script to be used from the operating
-# system command prompt (stand-alone), in a Python IDE, 
+# system command prompt (stand-alone), in a Python IDE,
 # as a geoprocessing script tool, or as a module imported in
 # another script
-if __name__ == '__main__':  
+if __name__ == '__main__':
     # Test to see if ArcGIS desktop installed
     if ((os.path.basename(sys.executable).lower() == "arcgispro.exe") or (os.path.basename(sys.executable).lower() == "arcmap.exe") or (os.path.basename(sys.executable).lower() == "arccatalog.exe")):
-        arcgisDesktop = "true"     
+        arcgisDesktop = "true"
 
     # If ArcGIS desktop installed
     if (arcgisDesktop == "true"):
@@ -520,7 +520,7 @@ if __name__ == '__main__':
     else:
         argv = sys.argv
         # Delete the first argument, which is the script
-        del argv[0] 
+        del argv[0]
     # Logging
     if (enableLogging == "true"):
         # Setup logging
@@ -533,5 +533,5 @@ if __name__ == '__main__':
         proxy = urllib2.ProxyHandler({requestProtocol : proxyURL})
         openURL = urllib2.build_opener(proxy)
         # Install the proxy
-        urllib2.install_opener(openURL)  
+        urllib2.install_opener(openURL)
     mainFunction(*argv)

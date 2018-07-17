@@ -4,7 +4,7 @@
 #             then aggregates these in a CSV file. This tool needs to be run as an ArcGIS Online/Portal administrator.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    05/04/2016
-# Last Updated:    05/04/2016
+# Last Updated:    11/04/2017
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   ArcMap 10.4+
 # Python Version:   2.7
@@ -54,6 +54,7 @@ else:
 import urllib
 import json
 import csv
+import ssl
 
 
 # Start of main function
@@ -82,8 +83,9 @@ def mainFunction(portalUrl,portalAdminName,portalAdminPassword,csvFile,csvFile2)
         params = params.encode('utf-8')
                  
         # POST the request - organisation query
+        context = ssl._create_unverified_context()
         requestURL = urllib2.Request(portalUrl + "/sharing/rest/portals/self",params)
-        response = urllib2.urlopen(requestURL)
+        response = urllib2.urlopen(requestURL, context=context)
         # Python version check
         if sys.version_info[0] >= 3:
             # Python 3.x
@@ -153,7 +155,7 @@ def mainFunction(portalUrl,portalAdminName,portalAdminPassword,csvFile,csvFile2)
                 row = []                               
                 row.append(service["url"])
                 row.append(service["title"])
-                row.append("https://wcc.maps.arcgis.com/home/item.html?id=" + service["webmap"])
+                row.append(portalUrl + "/home/item.html?id=" + service["webmap"])
                 writer.writerow(row)                
 
             printMessage("Creating grouped services list CSV file - " + csvFile2 + "...","info")
@@ -303,10 +305,11 @@ def searchWebmaps(portalUrl,token,query,startQueryNum):
         # Encode parameters
         params = urllib.urlencode(dict)
     params = params.encode('utf-8')
-        
+
     # POST the request - Creates a new item in the ArcGIS online site
     requestURL = urllib2.Request(portalUrl + "/sharing/rest/search",params)
-    response = urllib2.urlopen(requestURL)
+    context = ssl._create_unverified_context()
+    response = urllib2.urlopen(requestURL, context=context)
     # Python version check
     if sys.version_info[0] >= 3:
         # Python 3.x
@@ -359,7 +362,8 @@ def servicesWebmap(portalUrl,token,webmap):
 
     # POST the request - web map query
     requestURL = urllib2.Request(portalUrl + "/sharing/rest/content/items/" + webmap + "/data",params)
-    response = urllib2.urlopen(requestURL)
+    context = ssl._create_unverified_context()
+    response = urllib2.urlopen(requestURL, context=context)
     # Python version check
     if sys.version_info[0] >= 3:
         # Python 3.x
@@ -422,8 +426,9 @@ def generateToken(username, password, portalUrl):
                         'f' : 'json'})
     parameters = parameters.encode('utf-8')
     try:
-        urllib2.urlopen(portalUrl + '/sharing/rest/generateToken?',parameters)
-        response = urllib2.urlopen(portalUrl + '/sharing/rest/generateToken?',parameters) 
+        requestURL = urllib2.Request(portalUrl + '/sharing/rest/generateToken?',parameters)
+        context = ssl._create_unverified_context()
+        response = urllib2.urlopen(requestURL, context=context)
     except Exception as e:
         printMessage( 'Unable to open the url %s/sharing/rest/generateToken' % (portalUrl),'error')
         printMessage(e,'error')

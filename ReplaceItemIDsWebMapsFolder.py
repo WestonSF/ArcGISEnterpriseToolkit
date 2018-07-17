@@ -1,11 +1,12 @@
 #-------------------------------------------------------------
-# Name:       Set Popup Info for Services in Folder
-# Purpose:    Sets popup info configuration for all services in a folder.
+# Name:       Replace Item IDs for Web Maps in Folder
+# Purpose:    Does a search and replace of IDs in a web map and replaces
+#             ID with new ID specified in CSV file.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
-# Date Created:    14/09/2016
-# Last Updated:    14/09/2016
+# Date Created:    11/09/2017
+# Last Updated:    11/09/2017
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   ArcMap 10.4+
+# ArcGIS Version:   ArcMap 10.5+
 # Python Version:   2.7
 #--------------------------------
 
@@ -54,10 +55,11 @@ import urllib
 import ssl
 import json
 import string
+import csv
 
 
 # Start of main function
-def mainFunction(portalUrl,portalAdminName,portalAdminPassword,folderName,popupJSONFile,tagsToMatch): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)
+def mainFunction(portalUrl,portalAdminName,portalAdminPassword,folderName,replaceCSV): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)
     try:
         # --------------------------------------- Start of code --------------------------------------- #
         printMessage("Connecting to Portal - " + portalUrl + "...","info")
@@ -69,7 +71,7 @@ def mainFunction(portalUrl,portalAdminName,portalAdminPassword,folderName,popupJ
 
         if folderID:
             # Get all the items in the folder and iterate through these
-            getItemsFolder(portalUrl,portalAdminName,folderID,popupJSONFile,tagsToMatch,token)
+            getItemsFolder(portalUrl,portalAdminName,folderID,replaceCSV,token)
         else:
             printMessage("Folder does not exist in this users content...","error")
             sys.exit()
@@ -160,7 +162,7 @@ def mainFunction(portalUrl,portalAdminName,portalAdminPassword,folderName,popupJ
 
 
 # Start of get items folder function
-def getItemsFolder(portalUrl,portalAdminName,folderID,popupJSONFile,tagsToMatch,token):
+def getItemsFolder(portalUrl,portalAdminName,folderID,replaceCSV,token):
     dict = {}
     dict['f'] = 'json'
     dict['token'] = token
@@ -197,38 +199,19 @@ def getItemsFolder(portalUrl,portalAdminName,folderID,popupJSONFile,tagsToMatch,
         # For each item in the folder
         itemCount = 0
         for item in responseJSON["items"]:
-            printMessage("Getting the layer ID and tags for " + item["id"] + "...","info")
-            layerID,tags = getlayerIDTags(portalUrl,portalAdminName,folderID,item["id"],token)
-
-            # Get the tags and push into an array
-            share = "true"
-            if (len(tagsToMatch) > 0):
-                share = "false"
-                if len(tags) > 0:
-                    tagsMatch = string.split(str(tagsToMatch), ",")
-                    tagsItem = string.split(str(tags), ",")
-                else:
-                    tagsItem = ""
-                # For each tag in the item
-                for tagItem in tagsItem:
-                    # For tag to match from the config
-                    for tagMatch in tagsMatch:
-                        # If tag in config is in item
-                        if tagMatch in tagItem:
-                            share = "true"
-            if (share == "true"):
-                printMessage("Updating popup configuration for " + item["id"] + "...","info")
-                updatePopupJSON(portalUrl,portalAdminName,folderID,item["id"],popupJSONFile,layerID,token)
-            itemCount = itemCount + 1
-
+            if (item["type"].lower() == "web map"):
+                # Updating web map
+                printMessage("Upadating web map - " + item["id"] + "...","info")
+                updateWebmap(portalUrl,portalAdminName,folderID,item["id"],replaceCSV,token)
+                itemCount = itemCount + 1
         if (itemCount == 0):
-            printMessage("No items are in the folder...","error")
+            printMessage("No web maps are in the folder...","error")
             sys.exit()
 # End of get items folder function
 
 
-# Start of get layer ID function
-def getlayerIDTags(portalUrl,portalAdminName,folderID,itemId,token):
+# Start of update web map function
+def updateWebmap(portalUrl,portalAdminName,folderID,itemId,replaceCSV,token):
     # Setup parameters for request
     dict = {}
     dict['f'] = 'json'
@@ -245,8 +228,8 @@ def getlayerIDTags(portalUrl,portalAdminName,folderID,itemId,token):
         params = urllib.urlencode(dict)
     params = params.encode('utf-8')
 
-    # POST the request
-    requestURL = urllib2.Request(portalUrl + "/sharing/rest/content/users/" + portalAdminName + "/" + folderID + "/items/" + itemId,params)
+    # POST the request - get the webmap item
+    requestURL = urllib2.Request(portalUrl + "/sharing/rest/content/items/" + itemId + "/data",params)
     response = urllib2.urlopen(requestURL)
     responseJSON = json.loads(response.read().decode('utf8'))
 
@@ -257,53 +240,67 @@ def getlayerIDTags(portalUrl,portalAdminName,folderID,itemId,token):
         errDict['message'])
         printMessage(message,"error")
     else:
-        # Get the layer ID from the url
-        layerID = responseJSON["item"]["url"].split('/')
-        return layerID[-1],responseJSON["item"]["tags"]
-# End of get layer ID function
+        # Get the operational layers
+        layers = responseJSON["operationalLayers"]
+
+        if (len(layers) > 0):
+            layerItemIDs = 0
+            for layer in layers:
+                # If there is an itemId for the layer
+                if ("itemId" in layer):
+                    printMessage("Updating " + layer["id"] + " item ID " + layer["itemId"] + "...","info")
+                    webmapData = json.dumps(responseJSON)
+                    # Setup parameters for request
+                    dict = {}
+                    dict['f'] = 'json'
+                    dict['token'] = token
 
 
+                    with open(replaceCSV, 'rb') as csvFile:
+                        rows = csv.reader(csvFile, delimiter=',')
+                        count = 0
+                        for row in rows:
+                            # If not the header row
+                            if (count > 0):
+                                currentID = row[0]
+                                newID = row[1]
+                                printMessage(currentID + " to " + newID + "...","info")
+                                webmapData = webmapData.replace(currentID,newID)
+                            count +=1
 
-# Start of update text function
-def updatePopupJSON(portalUrl,portalAdminName,folderID,itemId,popupJSONFile,layerID,token):
-    # Read in from json file
-    with open(popupJSONFile) as dataFile:
-        popupData = dataFile.read().replace('\n', '')
+                    # Set the new web map data
+                    dict['text'] = webmapData
 
-    # Set the popup ID
-    popupData = popupData.replace("<LAYERID>", layerID)
+                    # Python version check
+                    if sys.version_info[0] >= 3:
+                        # Python 3.x
+                        # Encode parameters
+                        params = urllib.parse.urlencode(dict)
+                    else:
+                        # Python 2.x
+                        # Encode parameters
+                        params = urllib.urlencode(dict)
+                    params = params.encode('utf-8')
 
-    # Setup parameters for request
-    dict = {}
-    dict['f'] = 'json'
-    dict['token'] = token
-    dict['text'] = popupData
+                    # POST the request - update item
+                    requestURL = urllib2.Request(portalUrl + "/sharing/rest/content/users/" + portalAdminName + "/" + folderID + "/items/" + itemId + "/update",params)
+                    response = urllib2.urlopen(requestURL)
+                    responseJSONUpdate = json.loads(response.read().decode('utf8'))
 
-    # Python version check
-    if sys.version_info[0] >= 3:
-        # Python 3.x
-        # Encode parameters
-        params = urllib.parse.urlencode(dict)
-    else:
-        # Python 2.x
-        # Encode parameters
-        params = urllib.urlencode(dict)
-    params = params.encode('utf-8')
-
-    # POST the request
-    requestURL = urllib2.Request(portalUrl + "/sharing/rest/content/users/" + portalAdminName + "/" + folderID + "/items/" + itemId + "/update",params)
-    response = urllib2.urlopen(requestURL)
-    responseJSON = json.loads(response.read().decode('utf8'))
-
-    # Log results
-    if "error" in responseJSON:
-        errDict = responseJSON['error']
-        message =  "Error Code: %s \n Message: %s" % (errDict['code'],
-        errDict['message'])
-        printMessage(message,"error")
-    else:
-        return -1
-# End of update text function
+                    # Log results
+                    if "error" in responseJSONUpdate:
+                        errDict = responseJSONUpdate['error']
+                        message =  "Error Code: %s \n Message: %s" % (errDict['code'],
+                        errDict['message'])
+                        printMessage(message,"error")
+                    else:
+                        printMessage(layer["id"] + " updated...","info")
+                    layerItemIDs = layerItemIDs + 1
+            if (layerItemIDs == 0):
+                printMessage("No operational layers with item IDs in web map...","warning")
+        else:
+            printMessage("No operational layers in web map...","warning")
+# End of update web map function
 
 
 # Start of get folder ID function
