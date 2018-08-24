@@ -1,0 +1,13 @@
+<?xml version="1.0" ?>
+<configuration>
+<out_folder>C:\arcgisserver\directories\arcgiscache</out_folder>
+<tile_origin>-4020900 19998100</tile_origin>
+<scales>20000;10000;5000;2000</scales>
+<storage_format>Compact</storage_format>
+<cache_format>PNG</cache_format>
+<tile_compression_quality>0</tile_compression_quality>
+<dpi>96</dpi>
+<tile_width>256</tile_width>
+<tile_height>256</tile_height>
+<use_local_cache_dir>true</use_local_cache_dir>
+</configuration>

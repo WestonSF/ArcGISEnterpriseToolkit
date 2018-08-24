@@ -1,31 +1,7 @@
 # ArcGIS Online & Portal Toolkit
 
-The ArcGIS Online & Portal toolkit contains a number of tools and scripts to administer Portal for ArcGIS and ArcGIS Online.
+This toolkit contains a number of scripts to automate tasks in ArcGIS Enterprise.
 
-#### Create ArcGIS Online/Portal Group
-Creates a ArcGIS Online or Portal for ArcGIS group. Sets up description, logo and members of the group.
-
-#### Add Users to Portal for ArcGIS Site 
-Imports a list of users provided in a CSV file to Portal for ArcGIS, assigning to roles and setting default password. Can be
-built-in or enteprise users.  
-
-#### Download Feature Layer
-Downloads a feature service (As file geodatabase, Shapefile or CSV) from a portal site and optionally updates an existing dataset. Two update options:
-* Existing Mode - Will delete and append records, so field names need to be the same.
-             
-* New Mode - Copies data over. Requires no locks on geodatabase datasets being overwritten.  
-
-#### Register Service
-Registers a service with an ArcGIS Online site.  
-
-#### Portal Services Report
-Queries an ArcGIS Online/Portal for ArcGIS site to find all services that are being used in web maps then aggregates these in a CSV file. This tool needs to be run as an ArcGIS Online/Portal administrator.
-
-#### User Information Report
-Produces a number of reports (CSV format) for all users in the portal. Reports are:
-* Users that have not logged in over a year.
-* Groups a user is a member of.
-* Number/size of content a user owns.
 
 
 ## Issues

@@ -7,7 +7,7 @@
 #                       - Number/size of content a user owns.
 # Author:               Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:         02/07/2018
-# Last Updated:         16/07/2018
+# Last Updated:         16/08/2018
 # ArcGIS Version:       ArcGIS API for Python 1.4.2+
 # Python Version:       3.6.5+ (Anaconda 5.2+)
 #--------------------------------
@@ -33,7 +33,7 @@ if (useArcGISAPIPython == "true"):
 
 # Set global variables
 # Logging
-enableLogging = "false" # Use within code to print and log messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
+enableLogging = "true" # Use within code to print and log messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
 logFile = os.path.join(os.path.dirname(__file__), "UserInformationReport.log") # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
 # Email logging
 sendErrorEmail = "false"
@@ -53,12 +53,12 @@ output = None
 
 
 # Start of main function
-def mainFunction(portalURL,portalUser,portalPassword,inactiveUsersCSV,userPermissionsCSV,userContentCSV): # Add parameters sent to the script here e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)
+def mainFunction(portalURL,portalUser,portalPassword,inactiveUsersCSV,inactiveUsersID,userPermissionsCSV,userPermissionsID,userContentCSV,userContentID): # Add parameters sent to the script here e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)
     try:
         # --------------------------------------- Start of code --------------------------------------- #
         # Connect to GIS portal
         printMessage("Connecting to GIS Portal - " + portalURL + "...","info")
-        gisPortal = arcgis.GIS(url=portalURL, username=portalUser, password=portalPassword)
+        gisPortal = arcgis.GIS(url=portalURL, username=portalUser, password=portalPassword, verify_cert=False)
 
         # Get a list of all users
         users = gisPortal.users.search(query=None, sort_field='username', sort_order='asc', max_users=1000000, outside_org=False)
@@ -68,12 +68,33 @@ def mainFunction(portalURL,portalUser,portalPassword,inactiveUsersCSV,userPermis
 
         # Create inactive users report
         inactiveUsersReport(inactiveUsersCSV,users)
+        # If portal ID provided
+        if (inactiveUsersID):
+            printMessage("Updating report in portal - " + inactiveUsersID + "...","info")
+            # Get the portal item
+            inactiveUsersItem = gisPortal.content.get(inactiveUsersID)
+            # Update the CSV in portal
+            inactiveUsersItem.update(None,inactiveUsersCSV)
 
         # Create user permissions report
         userPermissionsReport(userPermissionsCSV,users,groups)
+        # If portal ID provided
+        if (userPermissionsID):
+            printMessage("Updating report in portal - " + userPermissionsID + "...","info")
+            # Get the portal item
+            userPermissionsItem = gisPortal.content.get(userPermissionsID)
+            # Update the CSV in portal
+            userPermissionsItem.update(None,userPermissionsCSV)
 
         # Create user content report
         userContentReport(userContentCSV,users)
+        # If portal ID provided
+        if (userContentID):
+            printMessage("Updating report in portal - " + userContentID + "...","info")
+            # Get the portal item
+            userContentItem = gisPortal.content.get(userContentID)
+            # Update the CSV in portal
+            userContentItem.update(None,userContentCSV)
 
         # --------------------------------------- End of code --------------------------------------- #
         # If called from ArcGIS GP tool
@@ -101,9 +122,6 @@ def mainFunction(portalURL,portalUser,portalPassword,inactiveUsersCSV,userPermis
             logger.handlers = []
     # If error
     except Exception as e:
-        # Build and show the error message
-        # errorMessage = arcpy.GetMessages(2)
-
         errorMessage = ""
         # Build and show the error message
         # If many arguments
@@ -149,6 +167,7 @@ def inactiveUsersReport(inactiveUsersCSV,users):
     data = []
     for user in users:
         userData = []
+        username = user.username
         fullName = user.fullName
         email = user.email
         level = user.level
@@ -169,7 +188,7 @@ def inactiveUsersReport(inactiveUsersCSV,users):
         # If last login was over a year ago or not logged in at all
         if (daysSinceActive > 365):
             # If not a system/general user
-            if (fullName.lower() != "esri") and (fullName.lower() != "esri navigation") and (fullName.lower() != "system publisher"):
+            if (username.lower() != "system_publisher") and (username.lower() != "esri_boundaries") and (username.lower() != "esri_demographics") and (username.lower() != "esri_livingatlas") and (username.lower() != "esri_nav"):
             # Add in user details to list
                 userData.append(fullName)
                 userData.append(email)
@@ -217,6 +236,7 @@ def userPermissionsReport(userPermissionsCSV,users,groups):
     data = []
     for user in users:
         userData = []
+        username = user.username
         fullName = user.fullName
         email = user.email
         level = user.level
@@ -228,7 +248,7 @@ def userPermissionsReport(userPermissionsCSV,users,groups):
             userGroupTitles.append(userGroup.title.lower())
 
         # If not a system/general user
-        if (fullName.lower() != "esri") and (fullName.lower() != "esri navigation") and (fullName.lower() != "system publisher"):
+        if (username.lower() != "system_publisher") and (username.lower() != "esri_boundaries") and (username.lower() != "esri_demographics") and (username.lower() != "esri_livingatlas") and (username.lower() != "esri_nav"):
             # Add in user details to list
             userData.append(fullName)
             userData.append(email)
@@ -272,13 +292,14 @@ def userContentReport(userContentCSV,users):
     data = []
     for user in users:
         userData = []
+        username = user.username
         fullName = user.fullName
         email = user.email
         level = user.level
         role = user.role
 
         # If not a system/general user
-        if (fullName.lower() != "esri") and (fullName.lower() != "esri navigation") and (fullName.lower() != "system publisher"):
+        if (username.lower() != "system_publisher") and (username.lower() != "esri_boundaries") and (username.lower() != "esri_demographics") and (username.lower() != "esri_livingatlas") and (username.lower() != "esri_nav"):
             # Add in user details to list
             userData.append(fullName)
             userData.append(email)
