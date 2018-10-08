@@ -9,7 +9,7 @@
 # Date Created:         02/07/2018
 # Last Updated:         16/08/2018
 # ArcGIS Version:       ArcGIS API for Python 1.4.2+
-# Python Version:       3.6.5+ (Anaconda 5.2+)
+# Python Version:       3.6.5+ (Anaconda Distribution)
 #--------------------------------
 
 # Import main modules

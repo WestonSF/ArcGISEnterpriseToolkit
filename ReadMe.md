@@ -1,7 +1,6 @@
-# ArcGIS Online & Portal Toolkit
+# ArcGIS Enterprise Toolkit
 
 This toolkit contains a number of scripts to automate tasks in ArcGIS Enterprise.
-
 
 
 ## Issues

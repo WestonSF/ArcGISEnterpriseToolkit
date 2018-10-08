@@ -1,8 +1,8 @@
 REM ----- User Information Report -----
-"C:\Program Files\ArcGIS\Pro\bin\Python\envs\arcgispro-py3\python.exe" "C:\Development\Python for ArcGIS Tools\ArcGIS Online & Portal Toolkit\CopyPortalContent.py" ^
- "https://site.co.nz/portal" ^
- "portaladmin" ^
+"C:\Program Files\ArcGIS\Pro\bin\Python\envs\arcgispro-py3\python.exe" "C:\Development\Python for ArcGIS Tools\ArcGIS Enterprise Toolkit\CopyPortalContent.py" ^
+ "https://organisation.testworld.co.nz/portal" ^
  "*****" ^
- "https://site.maps.arcgis.com" ^
- "admin" ^
- "*****"
+ "*****" ^
+ "https://organisation.testworld.co.nz/portal" ^
+ "*****" ^
+ "*****" ^
