@@ -2,6 +2,7 @@ REM ----- Create Mobile Map Package -----
 "C:\Program Files\ArcGIS\Pro\bin\Python\envs\arcgispro-py3\python.exe" "C:\Development\Python for ArcGIS Tools\ArcGIS Enterprise Toolkit\CreateMobileMapPackage.py"
  "\\GISDATA\Data\Services\Streets.mapx" ^
  "" ^
+ "\\GISDATA\Data\Services\Steets.mmpk" ^
  "https://organisation/arcgis" ^
  "WairarapaCouncil" ^
  "*****" ^

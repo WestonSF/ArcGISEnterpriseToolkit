@@ -6,7 +6,7 @@
 #                       in the display extent of the map file.
 # Author:               Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:         2/10/2018
-# Last Updated:         2/10/2018
+# Last Updated:         8/10/2018
 # ArcGIS Version:       ArcGIS Pro (ArcPy) 2.2+
 # Python Version:       3.6.5+ (Anaconda Distribution)
 #--------------------------------
@@ -30,8 +30,8 @@ if (useArcGISAPIPython == "true"):
 
 # Set global variables
 # Logging
-enableLogging = "true" # Use within code to print and log messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
-logFile = os.path.join(os.path.dirname(__file__), "Logs\CreateVectorTilePackage.log") # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
+enableLogging = "false" # Use within code to print and log messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
+logFile = os.path.join(os.path.dirname(__file__), "CreateVectorTilePackage.log") # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
 # Email logging
 sendErrorEmail = "false"
 emailServerName = "" # e.g. smtp.gmail.com
@@ -50,16 +50,12 @@ output = None
 
 
 # Start of main function
-def mainFunction(mapFile,tileSchemeFile,portalURL,portalUser,portalPassword,vectorTilePackageID,title,description,tags): # Add parameters sent to the script here e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)
+def mainFunction(mapFile,tileSchemeFile,localOutputLocation,portalURL,portalUser,portalPassword,vectorTilePackageID,title,description,tags): # Add parameters sent to the script here e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)
     try:
         # --------------------------------------- Start of code --------------------------------------- #
-        # Connect to GIS portal
-        printMessage("Connecting to GIS Portal - " + portalURL + "...","info")
-        gisPortal = arcgis.GIS(url=portalURL, username=portalUser, password=portalPassword, verify_cert=False)
-
-        printMessage("Creating vector tile package to temporary location - " + os.path.join(arcpy.env.scratchFolder, "VectorTilePackage.vtpk") + "...","info")
+        printMessage("Creating vector tile package - " + localOutputLocation + "...","info")
         arcpy.CreateVectorTilePackage_management(mapFile, # Map file
-                                                 os.path.join(arcpy.env.scratchFolder, "VectorTilePackage.vtpk"), # Output vector tile package
+                                                 localOutputLocation, # Output vector tile package
                                                  "EXISTING", # Service type - ONLINE or EXISTING 
                                                  tileSchemeFile, # Tile scheme file
                                                  "INDEXED", # Tile structure - INDEXED or FLAT
@@ -69,41 +65,47 @@ def mainFunction(mapFile,tileSchemeFile,portalURL,portalUser,portalPassword,vect
                                                  description, # Summary
                                                  tags) # Tags
 
-        # If ID provided
-        if (vectorTilePackageID):
-            printMessage("Updating existing vector tile package in portal - " + vectorTilePackageID,"info")
+        # If uploading to portal
+        if (portalURL and portalUser and portalPassword and title and description and tags):
+            # Connect to GIS portal
+            printMessage("Connecting to GIS Portal - " + portalURL + "...","info")
+            gisPortal = arcgis.GIS(url=portalURL, username=portalUser, password=portalPassword, verify_cert=False)
+        
+            # If ID provided
+            if (vectorTilePackageID):
+                printMessage("Updating existing vector tile package in portal - " + vectorTilePackageID,"info")
 
-            # Get the portal item
-            userContentItem = gisPortal.content.get(vectorTilePackageID)
-            # Update the vtpk in portal
-            userContentItem.update(None,os.path.join(arcpy.env.scratchFolder, "VectorTilePackage.vtpk"))
-        else:
-            printMessage("Uploading vector tile package to portal...","info")
+                # Get the portal item
+                userContentItem = gisPortal.content.get(vectorTilePackageID)
+                # Update the vtpk in portal
+                userContentItem.update(None,localOutputLocation)
+            else:
+                printMessage("Uploading vector tile package to portal...","info")
 
-            # Get all items for the user
-            user = gisPortal.users.get(portalUser)
-            userItems = user.items()
-            itemExists = False
-            # For each item
-            for userItem in userItems:
-                # If item already exists
-                if (title.lower() == userItem.title.lower()):
-                    printMessage("Vector tile package already exists in portal - " + userItem.id + "...", "info")
+                # Get all items for the user
+                user = gisPortal.users.get(portalUser)
+                userItems = user.items()
+                itemExists = False
+                # For each item
+                for userItem in userItems:
+                    # If item already exists
+                    if (title.lower() == userItem.title.lower()):
+                        printMessage("Vector tile package already exists in portal - " + userItem.id + "...", "info")
 
-                    # Get the portal item
-                    userContentItem = gisPortal.content.get(userItem.id)
-                    printMessage("Updating existing vector tile package...", "info")
-                    # Update the vtpk in portal
-                    userContentItem.update(None,os.path.join(arcpy.env.scratchFolder, "VectorTilePackage.vtpk"))
-                    itemExists = True
+                        # Get the portal item
+                        userContentItem = gisPortal.content.get(userItem.id)
+                        printMessage("Updating existing vector tile package...", "info")
+                        # Update the vtpk in portal
+                        userContentItem.update(None,localOutputLocation)
+                        itemExists = True
 
-            # If item doesn't exist in portal
-            if (itemExists == False):
-                # Upload the vtpk to portal
-                item = gisPortal.content.add({"title":title},os.path.join(arcpy.env.scratchFolder, "VectorTilePackage.vtpk"))
-                printMessage("Vector Tile Package uploaded - " + item.id + "...", "info")
-                # Publish the item as a service
-                item.publish()
+                # If item doesn't exist in portal
+                if (itemExists == False):
+                    # Upload the vtpk to portal
+                    item = gisPortal.content.add({"title":title},localOutputLocation)
+                    printMessage("Vector Tile Package uploaded - " + item.id + "...", "info")
+                    # Publish the item as a service
+                    item.publish()
 
 
         # --------------------------------------- End of code --------------------------------------- #

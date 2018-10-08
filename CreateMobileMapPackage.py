@@ -6,7 +6,7 @@
 #                       in the display extent of the map file.
 # Author:               Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:         24/08/2018
-# Last Updated:         27/08/2018
+# Last Updated:         08/10/2018
 # ArcGIS Version:       ArcGIS Pro (ArcPy) 2.2+
 # Python Version:       3.6.5+ (Anaconda Distribution)
 #--------------------------------
@@ -30,8 +30,8 @@ if (useArcGISAPIPython == "true"):
 
 # Set global variables
 # Logging
-enableLogging = "true" # Use within code to print and log messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
-logFile = os.path.join(os.path.dirname(__file__), "UserInformationReport.log") # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
+enableLogging = "false" # Use within code to print and log messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
+logFile = os.path.join(os.path.dirname(__file__), "CreateMobileMapPackage.log") # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
 # Email logging
 sendErrorEmail = "false"
 emailServerName = "" # e.g. smtp.gmail.com
@@ -50,16 +50,12 @@ output = None
 
 
 # Start of main function
-def mainFunction(mapFile,locator,portalURL,portalUser,portalPassword,mobileMapPackageID,title,description,tags): # Add parameters sent to the script here e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)
+def mainFunction(mapFile,locator,localOutputLocation,portalURL,portalUser,portalPassword,mobileMapPackageID,title,description,tags): # Add parameters sent to the script here e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)
     try:
         # --------------------------------------- Start of code --------------------------------------- #
-        # Connect to GIS portal
-        printMessage("Connecting to GIS Portal - " + portalURL + "...","info")
-        gisPortal = arcgis.GIS(url=portalURL, username=portalUser, password=portalPassword, verify_cert=False)
-
-        printMessage("Creating mobile map package to temporary location - " + os.path.join(arcpy.env.scratchFolder, "MobileMapPackage.mmpk") + "...","info")
+        printMessage("Creating mobile map package - " + localOutputLocation + "...","info")
         arcpy.management.CreateMobileMapPackage(mapFile, # Map file
-                                                os.path.join(arcpy.env.scratchFolder, "MobileMapPackage.mmpk"), # Output map package
+                                                localOutputLocation, # Output map package
                                                 locator, # Locator
                                                 None, # Area of interest
                                                 "DEFAULT", # Extent
@@ -70,39 +66,46 @@ def mainFunction(mapFile,locator,portalURL,portalUser,portalPassword,mobileMapPa
                                                 tags, # Tags
                                                 "", # Credits
                                                 "") # Usage limitations
-        # If ID provided
-        if (mobileMapPackageID):
-            printMessage("Updating existing mobile map package in portal - " + mobileMapPackageID,"info")
+        
+        # If uploading to portal
+        if (portalURL and portalUser and portalPassword and title and description and tags):
+            # Connect to GIS portal
+            printMessage("Connecting to GIS Portal - " + portalURL + "...","info")
+            gisPortal = arcgis.GIS(url=portalURL, username=portalUser, password=portalPassword, verify_cert=False)
+        
+            # If ID provided
+            if (mobileMapPackageID):
+                printMessage("Updating existing mobile map package in portal - " + mobileMapPackageID,"info")
 
-            # Get the portal item
-            userContentItem = gisPortal.content.get(mobileMapPackageID)
-            # Update the mmpk in portal
-            userContentItem.update(None,os.path.join(arcpy.env.scratchFolder, "MobileMapPackage.mmpk"))
-        else:
-            printMessage("Uploading mobile map package to portal...","info")
+                # Get the portal item
+                userContentItem = gisPortal.content.get(mobileMapPackageID)
+                # Update the mmpk in portal
+                userContentItem.update(None,localOutputLocation)
+            else:
+                printMessage("Uploading mobile map package to portal...","info")
 
-            # Get all items for the user
-            user = gisPortal.users.get(portalUser)
-            userItems = user.items()
-            itemExists = False
-            # For each item
-            for userItem in userItems:
-                # If item already exists
-                if (title.lower() == userItem.title.lower()):
-                    printMessage("Mobile Map Package already exists in portal - " + userItem.id + "...", "info")
+                # Get all items for the user
+                user = gisPortal.users.get(portalUser)
+                userItems = user.items()
+                itemExists = False
+                # For each item
+                for userItem in userItems:
+                    # If item already exists
+                    if (title.lower() == userItem.title.lower()):
+                        printMessage("Mobile Map Package already exists in portal - " + userItem.id + "...", "info")
 
-                    # Get the portal item
-                    userContentItem = gisPortal.content.get(userItem.id)
-                    printMessage("Updating existing mobile map package...", "info")
-                    # Update the mmpk in portal
-                    userContentItem.update(None,os.path.join(arcpy.env.scratchFolder, "MobileMapPackage.mmpk"))
-                    itemExists = True
+                        # Get the portal item
+                        userContentItem = gisPortal.content.get(userItem.id)
+                        printMessage("Updating existing mobile map package...", "info")
+                        # Update the mmpk in portal
+                        userContentItem.update(None,localOutputLocation)
+                        itemExists = True
 
-            # If item doesn't exist in portal
-            if (itemExists == False):
-                # Upload the mmpk to portal
-                item = gisPortal.content.add({"title":title},os.path.join(arcpy.env.scratchFolder, "MobileMapPackage.mmpk"))
-                printMessage("Mobile Map Package uploaded - " + item.id + "...", "info")
+                # If item doesn't exist in portal
+                if (itemExists == False):
+                    # Upload the mmpk to portal
+                    item = gisPortal.content.add({"title":title},localOutputLocation)
+                    printMessage("Mobile Map Package uploaded - " + item.id + "...", "info")
 
 
         # --------------------------------------- End of code --------------------------------------- #

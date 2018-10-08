@@ -2,6 +2,7 @@ REM ----- Create Vector Tile Package -----
 "C:\Program Files\ArcGIS\Pro\bin\Python\envs\arcgispro-py3\python.exe" "\\GISDATA\Data\Tools & Scripts\ArcGIS Admin Toolkit\CreateVectorTilePackage.py" ^
  "\\GISDATA\Data\Services\Streets.mapx" ^
  "\\GISDATA\Data\Tools & Scripts\ArcGIS Admin Toolkit\NZTMTileScheme.xml" ^
+ "\\GISDATA\Data\Services\Streets.vtpk" ^
  "https://organisation/arcgis" ^
  "Organisation" ^
  "*****" ^
