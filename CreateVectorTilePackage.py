@@ -6,7 +6,7 @@
 #                       in the display extent of the map file.
 # Author:               Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:         2/10/2018
-# Last Updated:         8/10/2018
+# Last Updated:         14/10/2018
 # ArcGIS Version:       ArcGIS Pro (ArcPy) 2.2+
 # Python Version:       3.6.5+ (Anaconda Distribution)
 #--------------------------------
@@ -30,7 +30,7 @@ if (useArcGISAPIPython == "true"):
 
 # Set global variables
 # Logging
-enableLogging = "false" # Use within code to print and log messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
+enableLogging = "true" # Use within code to print and log messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
 logFile = os.path.join(os.path.dirname(__file__), "CreateVectorTilePackage.log") # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
 # Email logging
 sendErrorEmail = "false"
@@ -102,11 +102,11 @@ def mainFunction(mapFile,tileSchemeFile,localOutputLocation,portalURL,portalUser
                 # If item doesn't exist in portal
                 if (itemExists == False):
                     # Upload the vtpk to portal
-                    item = gisPortal.content.add({"title":title},localOutputLocation)
+                    item = gisPortal.content.add({"title":title,"type":"Vector Tile Package"},localOutputLocation)
                     printMessage("Vector Tile Package uploaded - " + item.id + "...", "info")
                     # Publish the item as a service
-                    item.publish()
-
+                    layerItem = item.publish()
+                    printMessage("Vector Tile Layer published - " + layerItem.id + "...", "info")
 
         # --------------------------------------- End of code --------------------------------------- #
         # If called from ArcGIS GP tool

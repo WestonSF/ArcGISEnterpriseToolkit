@@ -6,7 +6,7 @@
 #                       in the display extent of the map file.
 # Author:               Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:         24/08/2018
-# Last Updated:         08/10/2018
+# Last Updated:         14/10/2018
 # ArcGIS Version:       ArcGIS Pro (ArcPy) 2.2+
 # Python Version:       3.6.5+ (Anaconda Distribution)
 #--------------------------------
@@ -30,7 +30,7 @@ if (useArcGISAPIPython == "true"):
 
 # Set global variables
 # Logging
-enableLogging = "false" # Use within code to print and log messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
+enableLogging = "true" # Use within code to print and log messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
 logFile = os.path.join(os.path.dirname(__file__), "CreateMobileMapPackage.log") # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
 # Email logging
 sendErrorEmail = "false"
@@ -104,7 +104,7 @@ def mainFunction(mapFile,locator,localOutputLocation,portalURL,portalUser,portal
                 # If item doesn't exist in portal
                 if (itemExists == False):
                     # Upload the mmpk to portal
-                    item = gisPortal.content.add({"title":title},localOutputLocation)
+                    item = gisPortal.content.add({"title":title,"type":"Mobile Map Package"},localOutputLocation)
                     printMessage("Mobile Map Package uploaded - " + item.id + "...", "info")
 
 
