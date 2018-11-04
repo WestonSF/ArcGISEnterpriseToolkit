@@ -1,7 +1,6 @@
 #-------------------------------------------------------------
-# Name:       Start or Stop Services
-# Purpose:    Starts or stops GIS services. Can start/stop all GIS services for an ArcGIS server site or just the ones
-#             that are specified.   
+# Name:       Start or Stop Service: ArcGIS Server
+# Purpose:    Starts or stops a service or services in an ArcGIS Server site.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    07/10/2014
 # Last Updated:    05/02/2018
@@ -19,7 +18,7 @@ import smtplib
 # Set global variables
 # Logging
 enableLogging = "true" # Use within code - logger.info("Example..."), logger.warning("Example..."), logger.error("Example...") and to print messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
-logFile = os.path.join(os.path.dirname(__file__), "StartStopServices.log") # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
+logFile = os.path.join(os.path.dirname(__file__), "StartStopServiceArcGISServer.log") # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
 # Email logging
 sendErrorEmail = "false"
 emailServerName = "" # e.g. smtp.gmail.com
