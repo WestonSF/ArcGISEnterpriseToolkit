@@ -6,7 +6,7 @@
 #                       in the display extent of the map file.
 # Author:               Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:         2/10/2018
-# Last Updated:         14/10/2018
+# Last Updated:         6/11/2018
 # ArcGIS Version:       ArcGIS Pro (ArcPy) 2.2+
 # Python Version:       3.6.5+ (Anaconda Distribution)
 #--------------------------------
@@ -30,7 +30,7 @@ if (useArcGISAPIPython == "true"):
 
 # Set global variables
 # Logging
-enableLogging = "true" # Use within code to print and log messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
+enableLogging = "false" # Use within code to print and log messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
 logFile = os.path.join(os.path.dirname(__file__), "CreateVectorTilePackage.log") # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
 # Email logging
 sendErrorEmail = "false"
@@ -50,7 +50,7 @@ output = None
 
 
 # Start of main function
-def mainFunction(mapFile,tileSchemeFile,localOutputLocation,portalURL,portalUser,portalPassword,vectorTilePackageID,title,description,tags): # Add parameters sent to the script here e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)
+def mainFunction(mapFile,tileSchemeFile,localOutputLocation,portalURL,portalUser,portalPassword,vectorTilePackageID,title,description,tags,shareEveryone,shareOrganisation,shareGroups,thumbnail): # Add parameters sent to the script here e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)
     try:
         # --------------------------------------- Start of code --------------------------------------- #
         printMessage("Creating vector tile package - " + localOutputLocation + "...","info")
@@ -78,7 +78,12 @@ def mainFunction(mapFile,tileSchemeFile,localOutputLocation,portalURL,portalUser
                 # Get the portal item
                 userContentItem = gisPortal.content.get(vectorTilePackageID)
                 # Update the vtpk in portal
-                userContentItem.update(None,localOutputLocation)
+                userContentItem.update(None,localOutputLocation,thumbnail)
+                # Share the item
+                userContentItem.share(everyone=shareEveryone, org=shareOrganisation, groups=shareGroups)
+                        
+                # Publish the package as a service
+                publishService(userContentItem,shareEveryone,shareOrganisation,shareGroups,thumbnail)
             else:
                 printMessage("Uploading vector tile package to portal...","info")
 
@@ -93,20 +98,24 @@ def mainFunction(mapFile,tileSchemeFile,localOutputLocation,portalURL,portalUser
                         printMessage("Vector tile package already exists in portal - " + userItem.id + "...", "info")
 
                         # Get the portal item
-                        userContentItem = gisPortal.content.get(userItem.id)
+                        item = gisPortal.content.get(userItem.id)
                         printMessage("Updating existing vector tile package...", "info")
                         # Update the vtpk in portal
-                        userContentItem.update(None,localOutputLocation)
+                        item.update(None,localOutputLocation,thumbnail)
+                        # Share the item
+                        item.share(everyone=shareEveryone, org=shareOrganisation, groups=shareGroups)  
                         itemExists = True
-
+                        # Publish the package as a service
+                        publishService(item,shareEveryone,shareOrganisation,shareGroups,thumbnail)
+                    
                 # If item doesn't exist in portal
                 if (itemExists == False):
                     # Upload the vtpk to portal
-                    item = gisPortal.content.add({"title":title,"type":"Vector Tile Package"},localOutputLocation)
+                    item = gisPortal.content.add({"title":title},localOutputLocation,thumbnail)
                     printMessage("Vector Tile Package uploaded - " + item.id + "...", "info")
-                    # Publish the item as a service
-                    layerItem = item.publish()
-                    printMessage("Vector Tile Layer published - " + layerItem.id + "...", "info")
+                    # Publish the package as a service
+                    publishService(item,shareEveryone,shareOrganisation,shareGroups,thumbnail)
+
 
         # --------------------------------------- End of code --------------------------------------- #
         # If called from ArcGIS GP tool
@@ -161,6 +170,34 @@ def mainFunction(mapFile,tileSchemeFile,localOutputLocation,portalURL,portalUser
             # Send email
             sendEmail(errorMessage)
 # End of main function
+
+
+# Start of publish service function
+def publishService(item,shareEveryone,shareOrganisation,shareGroups,thumbnail):
+    # Check if been published as a service
+    currentServices = item.related_items("Service2Data","reverse")
+    # If has already been published as a service
+    if (len(currentServices) > 0):
+        printMessage("Vector tile service currently exists for package - " + item.related_items("Service2Data","reverse")[0].id + "...","info")
+        printMessage("Deleting vector tile service and republishing...","info")
+        # Delete vector tile service
+        item.related_items("Service2Data","reverse")[0].delete()
+        # Publish the item as a service
+        serviceItem = item.publish()
+        serviceItem.update(thumbnail=thumbnail)
+        # Share the item
+        serviceItem.share(everyone=shareEveryone, org=shareOrganisation, groups=shareGroups)        
+        printMessage("Vector tile service has been republished - " + serviceItem.id + "...","info")
+    # Hasn't been published
+    else:
+        # Publish the item as a service
+        printMessage("Publishing as a service...","info")
+        serviceItem = item.publish()
+        serviceItem.update(thumbnail=thumbnail)
+        # Share the item
+        serviceItem.share(everyone=shareEveryone, org=shareOrganisation, groups=shareGroups)
+        printMessage("Vector tile service has been published - " + serviceItem.id + "...","info")    
+# End of publish service function
 
 
 # Start of print and logging message function
