@@ -14,6 +14,7 @@
 :: 	Share with organisation in portal - "True" or "False"
 :: 	List of group IDs to share with in portal
 :: 	Thumbnail to be used in portal
+:: 	Publish as service - "True" or "False"
 "C:\Program Files\ArcGIS\Pro\bin\Python\envs\arcgispro-py3\python.exe" "\\GISDATA\Data\Tools & Scripts\ArcGIS Admin Toolkit\CreateVectorTilePackage.py" ^
  "\\GISDATA\Data\Services\Streets.mapx" ^
  "\\GISDATA\Data\Tools & Scripts\ArcGIS Admin Toolkit\Data\NZTMTileScheme.xml" ^
@@ -28,4 +29,5 @@
  "true" ^
  "true" ^
  "60794d6eae524b99ad5ea4ee01f5d9aa" ^
- "\\GISDATA\Data\Tools & Scripts\ArcGIS Admin Toolkit\Data\StreetsThumbnail.jpg"
+ "\\GISDATA\Data\Tools & Scripts\ArcGIS Admin Toolkit\Data\StreetsThumbnail.jpg" ^
+ "true"

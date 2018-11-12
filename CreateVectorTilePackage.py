@@ -6,7 +6,7 @@
 #                       in the display extent of the map file.
 # Author:               Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:         2/10/2018
-# Last Updated:         6/11/2018
+# Last Updated:         12/11/2018
 # ArcGIS Version:       ArcGIS Pro (ArcPy) 2.2+
 # Python Version:       3.6.5+ (Anaconda Distribution)
 #--------------------------------
@@ -50,7 +50,7 @@ output = None
 
 
 # Start of main function
-def mainFunction(mapFile,tileSchemeFile,localOutputLocation,portalURL,portalUser,portalPassword,vectorTilePackageID,title,description,tags,shareEveryone,shareOrganisation,shareGroups,thumbnail): # Add parameters sent to the script here e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)
+def mainFunction(mapFile,tileSchemeFile,localOutputLocation,portalURL,portalUser,portalPassword,vectorTilePackageID,title,description,tags,shareEveryone,shareOrganisation,shareGroups,thumbnail,publishAsService): # Add parameters sent to the script here e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)
     try:
         # --------------------------------------- Start of code --------------------------------------- #
         printMessage("Creating vector tile package - " + localOutputLocation + "...","info")
@@ -81,9 +81,10 @@ def mainFunction(mapFile,tileSchemeFile,localOutputLocation,portalURL,portalUser
                 userContentItem.update(None,localOutputLocation,thumbnail)
                 # Share the item
                 userContentItem.share(everyone=shareEveryone, org=shareOrganisation, groups=shareGroups)
-                        
-                # Publish the package as a service
-                publishService(userContentItem,shareEveryone,shareOrganisation,shareGroups,thumbnail)
+                # If publishing as service
+                if (publishAsService.lower() == "true"):
+                    # Publish the package as a service
+                    publishService(userContentItem,shareEveryone,shareOrganisation,shareGroups,thumbnail)
             else:
                 printMessage("Uploading vector tile package to portal...","info")
 
@@ -105,16 +106,20 @@ def mainFunction(mapFile,tileSchemeFile,localOutputLocation,portalURL,portalUser
                         # Share the item
                         item.share(everyone=shareEveryone, org=shareOrganisation, groups=shareGroups)  
                         itemExists = True
-                        # Publish the package as a service
-                        publishService(item,shareEveryone,shareOrganisation,shareGroups,thumbnail)
+                        # If publishing as service
+                        if (publishAsService.lower() == "true"):                        
+                            # Publish the package as a service
+                            publishService(item,shareEveryone,shareOrganisation,shareGroups,thumbnail)
                     
                 # If item doesn't exist in portal
                 if (itemExists == False):
                     # Upload the vtpk to portal
                     item = gisPortal.content.add({"title":title},localOutputLocation,thumbnail)
                     printMessage("Vector Tile Package uploaded - " + item.id + "...", "info")
-                    # Publish the package as a service
-                    publishService(item,shareEveryone,shareOrganisation,shareGroups,thumbnail)
+                    # If publishing as service
+                    if (publishAsService.lower() == "true"):                    
+                        # Publish the package as a service
+                        publishService(item,shareEveryone,shareOrganisation,shareGroups,thumbnail)
 
 
         # --------------------------------------- End of code --------------------------------------- #
