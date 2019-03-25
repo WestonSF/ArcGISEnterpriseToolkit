@@ -4,622 +4,483 @@
 #             service is down. This tool should be setup as an automated task on the server.       
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    07/02/2014
-# Last Updated:    22/06/2015
+# Last Updated:    19/03/2019
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   10.1+
+# ArcGIS Version:   ArcMap (ArcPy) 10.1+
 # Python Version:   2.7
 #--------------------------------
 
-# Import modules
+# Import main modules
 import os
 import sys
 import logging
-import datetime
 import smtplib
-import httplib
-import json
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+import email.mime.application
+# Import ArcGIS modules
+useArcPy = "true"
+useArcGISAPIPython = "false"
+if (useArcPy == "true"):
+    # Import arcpy module
+    import arcpy
+    # Enable data to be overwritten
+    arcpy.env.overwriteOutput = True
+if (useArcGISAPIPython == "true"):
+    # Import arcgis module
+    import arcgis
 import urllib
-import urlparse
-import arcpy
+import urllib2
+import ssl
+import json
 
-# Enable data to be overwritten
-arcpy.env.overwriteOutput = True
-
-# Set variables
-enableLogging = "false"
-logFile = r""
+# Set global variables
+# Logging
+enableLogging = "true" # Use within code to print and log messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
+logFile = os.path.join(os.path.dirname(__file__), "ArcGISServerAvailability.log") # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
+# Email Use within code to send email - sendEmail(message,attachment)
 sendErrorEmail = "false"
-emailTo = ""
-emailUser = ""
+emailServerName = "" # e.g. smtp.gmail.com
+emailServerPort = 25 # e.g. 25
+emailSubject = "" # Subject in email
+emailTo = "" # Address of email sent to
+emailUser = "" # Address of email sent from
 emailPassword = ""
-emailSubject = ""
-emailMessage = ""
+# Proxy
 enableProxy = "false"
 requestProtocol = "http" # http or https
 proxyURL = ""
+# Output
 output = None
 
+
 # Start of main function
-def mainFunction(agsServerSite,username,password,service): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(agsSiteURL,agsSiteAdminURL,portalURL,portalUsername,portalPassword,service,errorStoppedServices): # Add parameters sent to the script here e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter) 
     try:
-        # --------------------------------------- Start of code --------------------------------------- #        
-
-        # Get the server site details
-        protocol, serverName, serverPort, context = splitSiteURL(agsServerSite)
-
-        # If any of the variables are blank
-        if (serverName == None or serverPort == None or protocol == None or context == None):
-            return -1
-
-        # Add on slash to context if necessary
-        if not context.endswith('/'):
-            context += '/'
-
-        # Add on admin to context if necessary   
-        if not context.endswith('admin/'):
-            context += 'admin/'
+        # --------------------------------------- Start of code --------------------------------------- #
 
         # Get token
-        token = getToken(username, password, serverName, serverPort, protocol)
+        token = getToken(portalURL, portalUsername, portalPassword)
 
-        # If token received
-        if (token != -1):
-            # Check server web adaptor
-            webAdaptors = getWebAdaptor(serverName, serverPort, protocol, token) 
+        # If token received (If no response the script will stop and error in the getToken function)
+        if (token):
+            # Check ArcGIS Server site directory
+            agsVersion = checkAGSSite(agsSiteURL, token)
+            # If response (If no response the script will stop and error in the checkAGSSite function)
+            if (agsVersion):
+                printMessage("ArcGIS Server site " + agsSiteURL + " is running correctly on version " + str(agsVersion) + "...","info")
 
-            for webAdaptor in webAdaptors:
-                # Get the server site details on web adaptor
-                protocolWeb, serverNameWeb, serverPortWeb, contextWeb = splitSiteURL(webAdaptor['webAdaptorURL'])
-
-                # Query arcgis server via the web adaptor
-                webStatusVersion = checkWebAdaptor(serverNameWeb, serverPortWeb, protocolWeb, contextWeb, token)               
-
-                if (webStatusVersion != -1):
-                    arcpy.AddMessage("ArcGIS Server With Web Adaptor " + webAdaptor['webAdaptorURL'] + " is running correctly on version " + str(webStatusVersion) + "...")
-                    # Logging
-                    if (enableLogging == "true"):
-                        logger.info("ArcGIS Server With Web Adaptor " + webAdaptor['webAdaptorURL'] + " is running correctly on version " + str(webStatusVersion) + "...")
-                # Else
-                else:
-                    arcpy.AddError("There is an issue with the web adaptor - " + webAdaptor['webAdaptorURL'])
-                    # Logging
-                    if (enableLogging == "true"):                    
-                        logger.error("There is an issue with the web adaptor - " + webAdaptor['webAdaptorURL'])
-                    # Email
-                    if (sendErrorEmail == "true"):
-                        # Send email
-                        sendEmail("There is an issue with the web adaptor - " + webAdaptor['webAdaptorURL'])                     
-                    
-            # List to hold services and their status
-            servicesStatus = []
-            
-            # If a service is provided
-            if (len(str(service)) > 0): 
-                # Query the service status
-                realtimeStatus = getServiceStatus(serverName, serverPort, protocol, service, token)
-                # Check the service
-                serviceInfo = checkService(serverName, serverPort, protocol, service, token)
+                # List to hold services and their status
+                servicesInfo = []
                 
-                serviceDetails = {'status': realtimeStatus, 'info': serviceInfo, 'service': service}
-                servicesStatus.append(serviceDetails)
-            # Else
-            else:
-                # Get all services
-                services = getServices(serverName, serverPort, protocol, token)
+                # If a service is provided
+                if (service):
+                    services = []
+                    services.append(service)
+                else:
+                    # Get all services (If no response the script will stop and error in the getServices function)
+                    services = getServices(agsSiteAdminURL, token)
+
                 # Query all services
                 # Iterate through services
                 for eachService in services:
-                    # Query the service status
-                    realtimeStatus = getServiceStatus(serverName, serverPort, protocol, eachService, token)          
-                    # Check the service
-                    serviceInfo = checkService(serverName, serverPort, protocol, eachService, token)
+                    # Get the service status
+                    realtimeStatus = getServiceStatus(agsSiteAdminURL, token, eachService)          
+                    # Check the service endpoint
+                    serviceInfo = checkService(agsSiteURL, token, eachService)
+                    # Query the service if map or feature service
+                    if ((eachService.split(".")[-1].lower() == "mapserver") or (eachService.split(".")[-1].lower() == "featureserver")):
+                        queryResultCount = queryService(agsSiteURL, serviceInfo, token, eachService)
+                    else:
+                        queryResultCount = None
+                    # Add service info to list
+                    servicesInfo.append({'service': eachService, 'status': realtimeStatus, 'info': serviceInfo, 'queryInfo': queryResultCount})
 
-                    serviceDetails = {'status': realtimeStatus, 'info': serviceInfo, 'service': eachService}
-                    servicesStatus.append(serviceDetails)
-                    
-            stoppedServices = 0
-            errorServices = 0
-            errors = []
-            # Iterate through services
-            for eachServicesStatus in servicesStatus:
-                # If status is stopped add to stopped counter
-                if (eachServicesStatus['status'] == "STOPPED"):
-                    stoppedServices = stoppedServices + 1
+                runningServices = 0
+                stoppedServices = 0
+                errorServices = 0
+                queryErrorServices = 0
+                errorMessages = []
+                # Iterate through services info dictionary
+                for serviceInfo in servicesInfo:
+                    # If service is stopped
+                    if "stopped" in str(serviceInfo["status"]).lower():
+                        stoppedServices += 1
+                        # If checking for stopped services or single service provided
+                        if ((errorStoppedServices.lower() == "true") or (service)):
+                            errorMessages.append(serviceInfo["service"] + " - " + "Service is stopped...")                            
+                    # If service started
+                    else:
+                        runningServices += 1
+                        # If error in result
+                        if "error" in str(serviceInfo["info"]).lower():
+                            errorMessages.append(serviceInfo["service"] + " - " + str(serviceInfo["info"]))
+                            errorServices += 1
+                        # If error in result
+                        if "error" in str(serviceInfo["queryInfo"]).lower():
+                            errorMessages.append(serviceInfo["service"] + " - " + str(serviceInfo["queryInfo"]))
+                            queryErrorServices += 1
+
+                # If a service is provided
+                if (service):
+                    # If any errors
+                    if (len(errorMessages) > 0):
+                        # For each error message
+                        for errorMessage in errorMessages:
+                            printMessage(errorMessage,"error")
+
+                        if (sendErrorEmail == "true"):
+                            message = "There is an issue with one or more services on the ArcGIS Server site - " + agsSiteURL + "..." + "<br/><br/>"
+                            for errorMessage in errorMessages:
+                                message += errorMessage + "<br/>"
+                            # Send email
+                            sendEmail(message,None)                            
+                    else:
+                        printMessage(service + " is running correctly...","info")  
                 else:
-                    # If error with service add to error counter
-                    if 'error' in eachServicesStatus['info']:
-                        errorServices = errorServices + 1
-                        errors.append(eachServicesStatus['info']['error']['message'])
-                    
-            # If any services are stopped/have errors
-            if (stoppedServices > 0) or (errorServices > 0):
-                arcpy.AddError(str(stoppedServices) + " services are stopped...")
-                arcpy.AddError(str(errorServices) + " services have errors...")
-                for error in errors:
-                    arcpy.AddError(error)
-                # Logging
-                if (enableLogging == "true"):
-                    logger.error(str(stoppedServices) + " services are stopped")
-                    logger.error(str(errorServices) + " services have errors")
-                    for error in errors:
-                        logger.error(error)
-                # Email
-                if (sendErrorEmail == "true"):
-                    errorMessage = str(stoppedServices) + " services are stopped" + "\n"
-                    errorMessage += str(errorServices) + " services have errors" + "\n" + "\n"
-                    for error in errors:
-                        errorMessage += error + "\n"
-                    # Send email
-                    sendEmail(errorMessage)                     
-            else:
-                arcpy.AddMessage("All services are running correctly...")
-                # Logging
-                if (enableLogging == "true"):
-                    logger.info("All services are running correctly...")            
+                    printMessage(str(runningServices) + " services are running...","info")
+                    printMessage(str(stoppedServices) + " services are stopped...","info")
+                    printMessage(str(errorServices) + " services have errors...","info")
+                    printMessage(str(queryErrorServices) + " map or feature services have data errors...","info")
+                    # If any errors
+                    if (len(errorMessages) > 0):
+                        # For each error message
+                        for errorMessage in errorMessages:
+                            printMessage(errorMessage,"error")
+
+                        if (sendErrorEmail == "true"):
+                            message = "There is an issue with one or more services on the ArcGIS Server site - " + agsSiteURL + "..." + "<br/><br/>"
+                            message += str(runningServices) + " services are running..." + "<br/>"
+                            message += str(stoppedServices) + " services are stopped..." + "<br/>"
+                            message += str(errorServices) + " services have errors..." + "<br/>"
+                            message += str(queryErrorServices) + " map or feature services have data errors..." + "<br/><br/>"
+                            for errorMessage in errorMessages:
+                                message += errorMessage + "<br/>"
+                            # Send email
+                            sendEmail(message,None)   
+                    else:
+                        printMessage("All services are running correctly...","info")  
 
         # --------------------------------------- End of code --------------------------------------- #  
             
-        # If called from gp tool return the arcpy parameter   
+        # If called from ArcGIS GP tool
         if __name__ == '__main__':
             # Return the output if there is any
             if output:
-                arcpy.SetParameterAsText(1, output)
-        # Otherwise return the result          
+                # If using ArcPy
+                if (useArcPy == "true"):
+                    arcpy.SetParameter(1, output)
+                # ArcGIS desktop not installed
+                else:
+                    return output
+        # Otherwise return the result
         else:
             # Return the output if there is any
             if output:
-                return output      
+                return output
         # Logging
         if (enableLogging == "true"):
             # Log end of process
             logger.info("Process ended.")
-            # Remove file handler and close log file            
-            logging.FileHandler.close(logMessage)
-            logger.removeHandler(logMessage)
-        pass
-    # If arcpy error
-    except arcpy.ExecuteError:           
-        # Build and show the error message
-        errorMessage = arcpy.GetMessages(2)   
-        arcpy.AddError(errorMessage)           
-        # Logging
-        if (enableLogging == "true"):
-            # Log error          
-            logger.error(errorMessage)
-            # Log end of process
-            logger.info("Process ended.")            
             # Remove file handler and close log file
-            logging.FileHandler.close(logMessage)
-            logger.removeHandler(logMessage)
-        if (sendErrorEmail == "true"):
-            # Send email
-            sendEmail(errorMessage)
-    # If python error
+            logMessage.flush()
+            logMessage.close()
+            logger.handlers = []
+    # If error
     except Exception as e:
+        # Build and show the error message
+        # errorMessage = arcpy.GetMessages(2)
+
         errorMessage = ""
         # Build and show the error message
-        for i in range(len(e.args)):
-            if (i == 0):
-                errorMessage = unicode(e.args[i]).encode('utf-8')
-            else:
-                errorMessage = errorMessage + " " + unicode(e.args[i]).encode('utf-8')
-        arcpy.AddError(errorMessage)              
+        # If many arguments
+        if (e.args):
+            for i in range(len(e.args)):
+                if (i == 0):
+                    errorMessage = str(e.args[i]).encode('utf-8').decode('utf-8')
+                else:
+                    errorMessage = errorMessage + " " + str(e.args[i]).encode('utf-8').decode('utf-8')
+        # Else just one argument
+        else:
+            errorMessage = e
+        printMessage(errorMessage,"error")
         # Logging
         if (enableLogging == "true"):
-            # Log error            
+            # Log error
             logger.error(errorMessage)
             # Log end of process
-            logger.info("Process ended.")            
+            logger.info("Process ended.")
             # Remove file handler and close log file
-            logging.FileHandler.close(logMessage)
-            logger.removeHandler(logMessage)
+            logMessage.flush()
+            logMessage.close()
+            logger.handlers = []
         if (sendErrorEmail == "true"):
             # Send email
-            sendEmail(errorMessage)            
+            sendEmail(errorMessage,None)
 # End of main function
 
 
-# Start of get web adaptor function
-def getWebAdaptor(serverName, serverPort, protocol, token):
-    params = urllib.urlencode({'token': token, 'f': 'json'})
+# Start of check AGS site function
+def checkAGSSite(agsSiteURL, token):
+    # Setup the parameters
+    parameters = urllib.urlencode({'token': token,
+                  'f': 'json'})
+    queryString = parameters.encode('utf-8')
 
-    # Construct URL to get the web adaptor
-    url = "/arcgis/admin/system/webadaptors"
-
-    # Post to the server
+    # Post request
     try:
-        response, data = postToServer(serverName, serverPort, protocol, url, params)   
-    except:
-        arcpy.AddError("Unable to connect to the ArcGIS Server site on " + serverName + ". Please check if the server is running.")
-        # Log error
-        if (logging == "true") or (sendErrorEmail == "true"):       
-            logger.error("Unable to connect to the ArcGIS Server site on " + serverName + ". Please check if the server is running.")
+        printMessage("Querying ArcGIS Server - " + agsSiteURL + "/rest/services" + "...","info") 
+        context = ssl._create_unverified_context()
+        request = urllib2.Request(agsSiteURL + "/rest/services",queryString)
+        responseJSON = json.loads(urllib2.urlopen(request, context=context).read())
+        if "error" in str(responseJSON).lower():
+            printMessage("There is an issue with the ArcGIS Server site - " + agsSiteURL,"error")
+            printMessage(responseJSON,"error")
+            if (sendErrorEmail == "true"):
+                message = "There is an issue with the ArcGIS Server site - " + agsSiteURL + "..." + "<br/><br/>"
+                message += str(responseJSON) + "<br/>"
+                # Send email
+                sendEmail(message,None)                             
+            # Exit the python script
             sys.exit()
-        return -1
-
-    # If there is an error
-    if (response.status != 200):
-        arcpy.AddError("Error getting web adaptor.")
-        # Logging
-        if (enableLogging == "true"):     
-            logger.error("Error getting web adaptor.")
-            sys.exit()
-        arcpy.AddError(str(data))
-        return -1
-    if (not assertJsonSuccess(data)):
-        arcpy.AddError("Error getting web adaptor. Please check if the server is running and ensure that the username/password provided are correct.")
-        # Logging
-        if (enableLogging == "true"): 
-            logger.error("Error getting web adaptor. Please check if the server is running and ensure that the username/password provided are correct.")
-            sys.exit()
-        return -1
-    # On successful query
-    else: 
-        dataObject = json.loads(data)
-        return dataObject['webAdaptors']
-# End of get web adaptor function
-
-
-# Start of get web adaptor function
-def checkWebAdaptor(serverName, serverPort, protocol, webName, token):
-    params = urllib.urlencode({'token': token, 'f': 'json'})
-
-    # Construct URL to check the web adaptor
-    url = webName + "/rest/services"
-
-    # Post to the server
-    try:
-        response, data = postToServer(serverName, serverPort, protocol, url, params)         
-    except:
-        arcpy.AddError("Unable to connect to the ArcGIS Server site on " + serverName + ". Please check if the server is running.")
-        # Log error
-        if (logging == "true") or (sendErrorEmail == "true"):       
-            logger.error("Unable to connect to the ArcGIS Server site on " + serverName + ". Please check if the server is running.")
-            sys.exit()
-        return -1
-    # If there is an error
-    if (response.status != 200):
-        arcpy.AddError("Error checking web adaptor.")
-        # Logging
-        if (enableLogging == "true"):     
-            logger.error("Error checking web adaptor.")
-            sys.exit()
-        arcpy.AddError(str(data))
-        return -1
-    if (not assertJsonSuccess(data)):
-        arcpy.AddError("Error checking web adaptor. Please check if the server is running and ensure that the username/password provided are correct.")
-        # Logging
-        if (enableLogging == "true"): 
-            logger.error("Error checking web adaptor. Please check if the server is running and ensure that the username/password provided are correct.")
-            sys.exit()
-        return -1
-    # On successful query
-    else:
-        dataObject = json.loads(data)
-        return dataObject['currentVersion']
-# End of get web adaptor function
+        else:
+            # Return response
+            return responseJSON['currentVersion']          
+    except urllib2.URLError, error:
+        printMessage("There is an issue connecting to the ArcGIS Server site - " + agsSiteURL + "...","error")
+        printMessage(error,"error")
+        if (sendErrorEmail == "true"):
+            message = "There is an issue connecting to the ArcGIS Server site - " + agsSiteURL + "..." + "<br/><br/>"
+            message += str(error) + "<br/>"
+            # Send email
+            sendEmail(message,None) 
+        # Exit the python script
+        sys.exit()
+# End of check AGS site function
 
 
 # Start of get services function
-def getServices(serverName, serverPort, protocol, token):
-    params = urllib.urlencode({'token': token, 'f': 'json'})
+def getServices(agsSiteAdminURL, token):
+    # Setup the parameters
+    parameters = urllib.urlencode({'token': token,
+                  'f': 'json'})
+    queryString = parameters.encode('utf-8')
 
-    # Services list
-    services = []
-    
-    # Construct URL to get services
-    url = "/arcgis/admin/services"
-
-    # Post to the server
+    # Post request
     try:
-        response, data = postToServer(serverName, serverPort, protocol, url, params)
-    except:
-        arcpy.AddError("Unable to connect to the ArcGIS Server site on " + serverName + ". Check if the server is running.")
-        # Logging
-        if (enableLogging == "true"):     
-            logger.error("Unable to connect to the ArcGIS Server site on " + serverName + ". Check if the server is running.")
+        printMessage("Querying ArcGIS Server for a list of services - " + agsSiteAdminURL + "/admin/services" + "...","info")         
+        context = ssl._create_unverified_context()
+        request = urllib2.Request(agsSiteAdminURL + "/admin/services",queryString)
+        responseJSON = json.loads(urllib2.urlopen(request, context=context).read())
+        if "error" in str(responseJSON).lower():
+            printMessage(responseJSON,"error")
+            if (sendErrorEmail == "true"):
+                message = "There is an issue with the ArcGIS Server site - " + agsSiteAdminURL + "..." + "<br/><br/>"
+                message += str(responseJSON) + "<br/>"
+                # Send email
+                sendEmail(message,None)
+            # Exit the python script
             sys.exit()
-        return -1
+        else:
+            # Iterate through services
+            services = []
+            for eachService in responseJSON['services']:                
+                services.append(eachService['serviceName']+ "." + eachService['type'])
 
-    # If there is an error
-    if (response.status != 200):
-        arcpy.AddError("Error getting services.")
-        arcpy.AddError(str(data))
-        # Logging
-        if (enableLogging == "true"): 
-            logger.error("Error getting services.")
-            sys.exit()
-        return -1
-    if (not assertJsonSuccess(data)):
-        arcpy.AddError("Error getting services. Check if the server is running and ensure that the username/password provided are correct.")
-        # Logging
-        if (enableLogging == "true"):
-            logger.error("Error getting services. Check if the server is running and ensure that the username/password provided are correct.")  
-            sys.exit()
-        return -1
-    # On successful query
-    else: 
-        dataObject = json.loads(data)
-        
-        # Iterate through services
-        for eachService in dataObject['services']:
-            # Add to list
-            services.append(eachService['serviceName'] + "." + eachService['type'])
-                    
-        # Iterate through folders
-        for folder in dataObject['folders']:
-
-            # Construct URL to get services for the folder
-            url = "/arcgis/admin/services/" + folder
-
-            # Post to the server
-            try:
-                response, data = postToServer(serverName, serverPort, protocol, url, params)
-            except:
-                arcpy.AddError("Unable to connect to the ArcGIS Server site on " + serverName + ". Check if the server is running.")
-                # Logging
-                if (enableLogging == "true"):     
-                    logger.error("Unable to connect to the ArcGIS Server site on " + serverName + ". Check if the server is running.")
-                    sys.exit()
-                return -1
-    
-            # If there is an error
-            if (response.status != 200):
-                arcpy.AddError("Error getting services.")
-                arcpy.AddError(str(data))
-                # Logging
-                if (enableLogging == "true"):     
-                    logger.error("Error getting services.")
-                    sys.exit()
-                return -1
-            if (not assertJsonSuccess(data)):
-                arcpy.AddError("Error getting services. Check if the server is running and ensure that the username/password provided are correct.")
-                # Logging
-                if (enableLogging == "true"):   
-                    logger.error("Error getting services. Check if the server is running and ensure that the username/password provided are correct.")
-                    sys.exit()
-                return -1
-            # On successful query
-            else: 
-                dataObject = json.loads(data)
-                # Iterate through services
-                for eachService in dataObject['services']:                
-                    services.append(folder + "/" + eachService['serviceName']+ "." + eachService['type'])
-        # Return a list of services
-        return services                    
+            # Iterate through folders
+            for folder in responseJSON['folders']:
+                # Ignore the system or utilities folder
+                if ((folder.lower() != "system") or (folder.lower() != "utilities")):
+                    context = ssl._create_unverified_context()
+                    request = urllib2.Request(agsSiteAdminURL + "/admin/services/" + folder,queryString)
+                    responseJSON = json.loads(urllib2.urlopen(request, context=context).read())
+                    if "error" in str(responseJSON).lower():
+                        printMessage(responseJSON,"error")
+                        if (sendErrorEmail == "true"):
+                            message = "There is an issue with the ArcGIS Server site - " + agsSiteAdminURL + "..." + "<br/><br/>"
+                            message += str(responseJSON) + "<br/>"
+                            # Send email
+                            sendEmail(message,None)
+                        # Exit the python script
+                        sys.exit()
+                    else:
+                        # Iterate through services
+                        for eachService in responseJSON['services']:                
+                            services.append(folder + "/" + eachService['serviceName']+ "." + eachService['type'])
+            # Return services list 
+            return services           
+    except urllib2.URLError, error:
+        printMessage("There is an issue connecting to the ArcGIS Server site - " + agsSiteAdminURL + "...","error")
+        printMessage(error,"error")
+        if (sendErrorEmail == "true"):
+            message = "There is an issue connecting to the ArcGIS Server site - " + agsSiteAdminURL + "..." + "<br/><br/>"
+            message += str(error) + "<br/>"
+            # Send email
+            sendEmail(message,None)        
+        # Exit the python script
+        sys.exit()
 # End of get services function
 
 
 # Start of get service status function
-def getServiceStatus(serverName, serverPort, protocol, service, token):
-    params = urllib.urlencode({'token': token, 'f': 'json'})
+def getServiceStatus(agsSiteAdminURL, token, service):
+    # Setup the parameters
+    parameters = urllib.urlencode({'token': token,
+                  'f': 'json'})
+    queryString = parameters.encode('utf-8')
 
-    # Construct URL to get the service status
-    url = "/arcgis/admin/services/" + service + "/status"
-
-    # Post to the server
+    # Post request
     try:
-        response, data = postToServer(serverName, serverPort, protocol, url, params)
-    except:
-        arcpy.AddError("Unable to connect to the ArcGIS Server site on " + serverName + ". Check if the server is running.")
-        # Logging
-        if (enableLogging == "true"):     
-            logger.error("Unable to connect to the ArcGIS Server site on " + serverName + ". Check if the server is running.")
-            sys.exit()
-        return -1
-
-    # If there is an error
-    if (response.status != 200):
-        arcpy.AddError("Error getting service status.")
-        # Logging
-        if (enableLogging == "true"):    
-            logger.error("Error getting service status.")
-            sys.exit()
-        arcpy.AddError(str(data))
-        return -1
-    if (not assertJsonSuccess(data)):
-        arcpy.AddError("Error getting service status. Check if the server is running and ensure that the username/password provided are correct.")
-        # Logging
-        if (enableLogging == "true"):  
-            logger.error("Error getting service status. Check if the server is running and ensure that the username/password provided are correct.")
-            sys.exit()
-        return -1
-    # On successful query
-    else: 
-        dataObject = json.loads(data)
-        # Return the real time state
-        return dataObject['realTimeState']
+        printMessage("Querying for service status - " + agsSiteAdminURL + "/admin/services/" + service + "/status" + "...","info")         
+        context = ssl._create_unverified_context()
+        request = urllib2.Request(agsSiteAdminURL + "/admin/services/" + service + "/status",queryString)
+        responseJSON = json.loads(urllib2.urlopen(request, context=context).read())
+        if "error" in str(responseJSON).lower():
+            return responseJSON
+        else:
+            # Return response
+            return responseJSON['realTimeState']                     
+    except urllib2.URLError, error:
+        return "Error: Could not connect..."
 # End of get service status function
 
 
 # Start of check service function
-def checkService(serverName, serverPort, protocol, service, token):
-    params = urllib.urlencode({'token': token, 'f': 'json'})
+def checkService(agsSiteURL, token, service):
+    # Setup the parameters
+    parameters = urllib.urlencode({'token': token,
+                  'f': 'json'})
+    queryString = parameters.encode('utf-8')
 
-    # Construct URL to get the service status
-    url = "/arcgis/rest/services/" + service.replace(".", "/")
-
-    # Post to the server
+    # Post request
     try:
-        response, data = postToServer(serverName, serverPort, protocol, url, params)
-    except:
-        arcpy.AddError("Unable to connect to the ArcGIS Server site on " + serverName + ". Check if the server is running.")
-        # Logging
-        if (enableLogging == "true"):      
-            logger.error("Unable to connect to the ArcGIS Server site on " + serverName + ". Check if the server is running.")
-            sys.exit()
-        return -1
-
-    # If there is an error
-    if (response.status != 200):
-        arcpy.AddError("Error getting service status.")
-        # Logging
-        if (enableLogging == "true"):  
-            logger.error("Error getting service status.")
-            sys.exit()
-        arcpy.AddError(str(data))
-        return -1
-    if (not assertJsonSuccess(data)):
-        arcpy.AddError("Error getting service status. Check if the server is running and ensure that the username/password provided are correct.")
-        # Logging
-        if (enableLogging == "true"):    
-            logger.error("Error getting service status. Check if the server is running and ensure that the username/password provided are correct.")
-            sys.exit()
-        return -1
-    # On successful query
-    else:    
-        dataObject = json.loads(data)
+        printMessage("Querying service for info - " + agsSiteURL + "/rest/services/" + service.replace(".", "/") + "...","info") 
+        context = ssl._create_unverified_context()
+        request = urllib2.Request(agsSiteURL + "/rest/services/" + service.replace(".", "/"),queryString)
+        responseJSON = json.loads(urllib2.urlopen(request, context=context).read())
         
-        # Return the service object
-        return dataObject
+        if "error" in str(json.dumps(responseJSON)).lower():
+            return responseJSON
+        else:
+            # Return response
+            return responseJSON                    
+    except urllib2.URLError, error:
+        return "Error: Could not connect..."
 # End of check service function
 
 
-# Start of get token function
-def getToken(username, password, serverName, serverPort, protocol):
-    params = urllib.urlencode({'username': username.decode(sys.stdin.encoding or sys.getdefaultencoding()).encode('utf-8'), 'password': password.decode(sys.stdin.encoding or sys.getdefaultencoding()).encode('utf-8'),'client': 'referer','referer':'backuputility','f': 'json'})
-           
-    # Construct URL to get a token
-    url = "/arcgis/tokens/generateToken"
-        
-    try:
-        response, data = postToServer(serverName, serverPort, protocol, url, params)
-    except:
-        arcpy.AddError("Unable to connect to the ArcGIS Server site on " + serverName + ". Check if the server is running.")
-        # Logging
-        if (enableLogging == "true"):  
-            logger.error("Unable to connect to the ArcGIS Server site on " + serverName + ". Check if the server is running.")
-            sys.exit()
-        return -1    
-    # If there is an error getting the token
-    if (response.status != 200):
-        arcpy.AddError("Error while generating the token.")
-        arcpy.AddError(str(data))
-        # Logging
-        if (enableLogging == "true"):  
-            logger.error("Error while generating the token.")
-            sys.exit()
-        return -1
-    if (not assertJsonSuccess(data)):
-        arcpy.AddError("Error while generating the token. Check if the server is running and ensure that the username/password provided are correct.")
-        # Logging
-        if (enableLogging == "true"):      
-            logger.error("Error while generating the token. Check if the server is running and ensure that the username/password provided are correct.")
-            sys.exit()
-        return -1
-    # Token returned
-    else:
-        # Extract the token from it
-        dataObject = json.loads(data)
+# Start of query service function
+def queryService(agsSiteURL, serviceInfo, token, service):
+    # Setup the parameters
+    parameters = urllib.urlencode({'token': token,
+                  'where': '1=1',
+                  'returnCountOnly': 'true',
+                  'f': 'json'})
+    queryString = parameters.encode('utf-8')
 
-        # Return the token if available
-        if "error" in dataObject:
-            arcpy.AddError("Error retrieving token.")
-            # Logging
-            if (enableLogging == "true"):     
-                logger.error("Error retrieving token.")
-                sys.exit()
-            return -1        
+    if "layers" in str(serviceInfo).lower():
+        dataLayerFound = False
+        layerId = "0"
+        for layer in serviceInfo["layers"]:
+            # If sublayers in layer object
+            if "sublayerids" in str(serviceInfo["layers"]):
+                # If not a group layer
+                if (layer["subLayerIds"] == None):
+                    dataLayerFound = True
+                    layerId = str(layer["id"])                 
+            else:
+                dataLayerFound = True
+                layerId = str(layer["id"])                
+        # If there is a data layer in the service
+        if (dataLayerFound == True):                  
+            # Post request
+            try:
+                printMessage("Querying data in service - " + agsSiteURL + "/rest/services/" + service.replace(".", "/") + "/" + layerId + "/query" + "...","info")           
+                context = ssl._create_unverified_context()
+                request = urllib2.Request(agsSiteURL + "/rest/services/" + service.replace(".", "/") + "/" + layerId + "/query",queryString)
+                responseJSON = json.loads(urllib2.urlopen(request, context=context).read())
+                if "error" in str(responseJSON).lower():
+                    return responseJSON
+                else:
+                    # Return response
+                    return responseJSON["count"]                    
+            except urllib2.URLError, error:
+                return "Error: Could not connect..."
         else:
-            return dataObject['token']
+            return "Error: No data in the service..."          
+    else:
+        return "Error: No layers in the service..."  
+# End of query service function
+
+
+# Start of get token function
+def getToken(portalURL,portalUser,portalPassword):
+    printMessage("Getting portal token - " + portalURL + "/sharing/rest/generateToken","info")
+        
+    # Setup the parameters
+    parameters = urllib.urlencode({'username': portalUser,
+                  'password': portalPassword,
+                  'client': 'referer',
+                  'referer': portalURL,
+                  'expiration': '60',
+                  'f': 'json'})
+    queryString = parameters.encode('utf-8')
+
+    # Request to get token
+    try:
+        context = ssl._create_unverified_context()
+        request = urllib2.Request(portalURL + "/sharing/rest/generateToken",queryString)
+        responseJSON = json.loads(urllib2.urlopen(request, context=context).read())
+        if "error" in str(responseJSON).lower():
+            printMessage(responseJSON,"error")
+            if (sendErrorEmail == "true"):
+                message = "There was an issue retrieving the token from the ArcGIS Enterprise site - " + portalURL + "..." + "<br/><br/>"
+                message += str(responseJSON) + "<br/>"
+                # Send email
+                sendEmail(message,None)
+            # Exit the python script
+            sys.exit()
+        else:
+            token = responseJSON.get('token')
+            return token
+    except urllib2.URLError, error:
+        printMessage("Could not connect...","error")
+        printMessage(error,"error")
+        if (sendErrorEmail == "true"):
+            message = "There was an issue retrieving the token from the ArcGIS Enterprise site - " + portalURL + "..." + "<br/><br/>"
+            message += str(error) + "<br/>"
+            # Send email
+            sendEmail(message,None)
+        # Exit the python script
+        sys.exit()
 # End of get token function
 
 
-# Start of HTTP POST request to the server function
-def postToServer(serverName, serverPort, protocol, url, params):
-    # If on standard port
-    if (serverPort == -1 and protocol == 'http'):
-        serverPort = 80
-
-    # If on secure port
-    if (serverPort == -1 and protocol == 'https'):
-        serverPort = 443
-        
-    if (protocol == 'http'):
-        httpConn = httplib.HTTPConnection(serverName, int(serverPort))
-
-    if (protocol == 'https'):
-        httpConn = httplib.HTTPSConnection(serverName, int(serverPort))
-        
-    headers = {"Content-type": "application/x-www-form-urlencoded", "Accept": "text/plain",'referer':'backuputility','referrer':'backuputility'}     
-    # URL encode the resource URL
-    url = urllib.quote(url.encode('utf-8'))
-
-    # Build the connection to add the roles to the server
-    httpConn.request("POST", url, params, headers) 
-
-    response = httpConn.getresponse()
-    data = response.read()
-
-    httpConn.close()
-    # Return response
-    return (response, data)
-# End of HTTP POST request to the server function
-
-
-# Start of split URL function 
-def splitSiteURL(siteURL):
-    try:
-        serverName = ''
-        serverPort = -1
-        protocol = 'http'
-        context = '/arcgis'
-        # Split up the URL provided
-        urllist = urlparse.urlsplit(siteURL)
-        # Put the URL list into a dictionary
-        d = urllist._asdict()
-
-        # Get the server name and port
-        serverNameAndPort = d['netloc'].split(":")
-
-        # User did not enter the port number, so we return -1
-        if (len(serverNameAndPort) == 1):
-            serverName = serverNameAndPort[0]
+# Start of print and logging message function
+def printMessage(message,type):
+    # If using ArcPy
+    if (useArcPy == "true"):
+        if (type.lower() == "warning"):
+            arcpy.AddWarning(message)
+            # Logging
+            if (enableLogging == "true"):
+                logger.warning(message)
+        elif (type.lower() == "error"):
+            arcpy.AddError(message)
+            # Logging
+            if (enableLogging == "true"):
+                logger.error(message)
         else:
-            if (len(serverNameAndPort) == 2):
-                serverName = serverNameAndPort[0]
-                serverPort = serverNameAndPort[1]
-
-        # Get protocol
-        if (d['scheme'] is not ''):
-            protocol = d['scheme']
-
-        # Get path
-        if (d['path'] is not '/' and d['path'] is not ''):
-            context = d['path']
-
-        # Return variables
-        return protocol, serverName, serverPort, context  
-    except:
-        arcpy.AddError("The ArcGIS Server site URL should be in the format http(s)://<host>:<port>/arcgis")
+            arcpy.AddMessage(message)
+            # Logging
+            if (enableLogging == "true"):
+                logger.info(message)
+    else:
+        print(message)
         # Logging
         if (enableLogging == "true"):
-            logger.error("The ArcGIS Server site URL should be in the format http(s)://<host>:<port>/arcgis")
-            sys.exit()
-        return None, None, None, None
-# End of split URL function
-
-
-# Start of status check JSON object function
-def assertJsonSuccess(data):
-    try:
-        obj = json.loads(data)
-
-        if 'status' in obj and obj['status'] == "error":
-            if ('messages' in obj):
-                errMsgs = obj['messages']
-                for errMsg in errMsgs:
-                    arcpy.AddError(errMsg)
-                    # Logging
-                    if (enableLogging == "true"):    
-                        logger.error(errMsg)
-                sys.exit()
-            return False
-        else:
-            return True
-    except ValueError, e:
-        return False
-# End of status check JSON object function
+            logger.info(message)
+# End of print and logging message function
 
 
 # Start of set logging function
@@ -634,39 +495,59 @@ def setLogging(logFile):
     # Add formatter to log message handler
     logMessage.setFormatter(logFormat)
     # Add log message handler to logger
-    logger.addHandler(logMessage) 
+    logger.addHandler(logMessage)
 
-    return logger, logMessage               
+    return logger, logMessage
 # End of set logging function
 
 
 # Start of send email function
-def sendEmail(message):
+def sendEmail(message,attachment):
     # Send an email
-    arcpy.AddMessage("Sending email...")
+    printMessage("Sending email...","info")
     # Server and port information
-    smtpServer = smtplib.SMTP("smtp.gmail.com",587) 
+    smtpServer = smtplib.SMTP(emailServerName,emailServerPort)
     smtpServer.ehlo()
-    smtpServer.starttls() 
+    smtpServer.starttls()
     smtpServer.ehlo
+    # Setup content for email (In html format)
+    emailMessage = MIMEMultipart('alternative')
+    emailMessage['Subject'] = emailSubject
+    emailMessage['From'] = emailUser
+    emailMessage['To'] = emailTo
+    emailText = MIMEText(message, 'html')
+    emailMessage.attach(emailText)
+
+    # If there is a file attachment
+    if (attachment):
+        fp = open(attachment,'rb')
+        fileAttachment = email.mime.application.MIMEApplication(fp.read(),_subtype="pdf")
+        fp.close()
+        fileAttachment.add_header('Content-Disposition','attachment',filename=os.path.basename(attachment))
+        emailMessage.attach(fileAttachment)
+
     # Login with sender email address and password
-    smtpServer.login(emailUser, emailPassword)
-    # Email content
-    header = 'To:' + emailTo + '\n' + 'From: ' + emailUser + '\n' + 'Subject:' + emailSubject + '\n'
-    body = header + '\n' + emailMessage + '\n' + '\n' + message
+    if (emailUser and emailPassword):
+        smtpServer.login(emailUser, emailPassword)
     # Send the email and close the connection
-    smtpServer.sendmail(emailUser, emailTo, body)    
+    smtpServer.sendmail(emailUser, emailTo, emailMessage.as_string())
+    smtpServer.quit()
 # End of send email function
 
 
 # This test allows the script to be used from the operating
-# system command prompt (stand-alone), in a Python IDE, 
+# system command prompt (stand-alone), in a Python IDE,
 # as a geoprocessing script tool, or as a module imported in
 # another script
 if __name__ == '__main__':
-    # Arguments are optional - If running from ArcGIS Desktop tool, parameters will be loaded into *argv
-    argv = tuple(arcpy.GetParameterAsText(i)
-        for i in range(arcpy.GetArgumentCount()))
+    # If using ArcPy
+    if (useArcPy == "true"):
+        argv = tuple(arcpy.GetParameterAsText(i)
+            for i in range(arcpy.GetArgumentCount()))
+    else:
+        argv = sys.argv
+        # Delete the first argument, which is the script
+        del argv[0]
     # Logging
     if (enableLogging == "true"):
         # Setup logging

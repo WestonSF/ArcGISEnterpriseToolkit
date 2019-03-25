@@ -7,9 +7,9 @@
 #                       - Number/size of content a user owns.
 # Author:               Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:         02/07/2018
-# Last Updated:         16/08/2018
+# Last Updated:         25/03/2019
 # ArcGIS Version:       ArcGIS API for Python 1.4.2+
-# Python Version:       3.6.5+ (Anaconda Distribution)
+# Python Version:       3.6.5+ (Anaconda 5.2+)
 #--------------------------------
 
 # Import main modules
@@ -67,7 +67,7 @@ def mainFunction(portalURL,portalUser,portalPassword,inactiveUsersCSV,inactiveUs
         groups = gisPortal.groups.search(query='', sort_field='title', sort_order='asc', max_groups=1000000, outside_org=False, categories=None)
 
         # Create inactive users report
-        inactiveUsersReport(inactiveUsersCSV,users)
+        inactiveUsersReport(gisPortal,inactiveUsersCSV,users)
         # If portal ID provided
         if (inactiveUsersID):
             printMessage("Updating report in portal - " + inactiveUsersID + "...","info")
@@ -77,7 +77,7 @@ def mainFunction(portalURL,portalUser,portalPassword,inactiveUsersCSV,inactiveUs
             inactiveUsersItem.update(None,inactiveUsersCSV)
 
         # Create user permissions report
-        userPermissionsReport(userPermissionsCSV,users,groups)
+        userPermissionsReport(gisPortal,userPermissionsCSV,users,groups)
         # If portal ID provided
         if (userPermissionsID):
             printMessage("Updating report in portal - " + userPermissionsID + "...","info")
@@ -87,7 +87,7 @@ def mainFunction(portalURL,portalUser,portalPassword,inactiveUsersCSV,inactiveUs
             userPermissionsItem.update(None,userPermissionsCSV)
 
         # Create user content report
-        userContentReport(userContentCSV,users)
+        userContentReport(gisPortal,userContentCSV,users)
         # If portal ID provided
         if (userContentID):
             printMessage("Updating report in portal - " + userContentID + "...","info")
@@ -152,7 +152,7 @@ def mainFunction(portalURL,portalUser,portalPassword,inactiveUsersCSV,inactiveUs
 
 
 # Start of inactive users report function
-def inactiveUsersReport(inactiveUsersCSV,users):
+def inactiveUsersReport(gisPortal,inactiveUsersCSV,users):
     printMessage("Creating inactive users report - " + inactiveUsersCSV + "...","info")
 
     # Create a CSV writer and setup header
@@ -172,6 +172,11 @@ def inactiveUsersReport(inactiveUsersCSV,users):
         email = user.email
         level = user.level
         role = user.role
+        # If a custom role
+        if ((user.roleId.lower() != "org_admin") and (user.roleId.lower() != "org_publisher") and (user.roleId.lower() != "org_user")):
+            customRole = gisPortal.users.roles.get_role(user.roleId)
+            role = customRole.name
+
         # Get the date the account was created
         dateCreated = time.strftime("%d/%m/%Y %H:%M:%S",time.localtime(user.created/1000))
         # If user has last login
@@ -213,7 +218,7 @@ def inactiveUsersReport(inactiveUsersCSV,users):
 
 
 # Start of user permissions report function
-def userPermissionsReport(userPermissionsCSV,users,groups):
+def userPermissionsReport(gisPortal,userPermissionsCSV,users,groups):
     printMessage("Creating user permissions report - " + userPermissionsCSV + "...","info")
 
     # Create a CSV writer and setup header
@@ -221,7 +226,7 @@ def userPermissionsReport(userPermissionsCSV,users,groups):
     writer = csv.writer(file, delimiter=",")
 
     # Add in header information for CSV
-    fieldNames = ["Name","Email","Level","Role"]
+    fieldNames = ["Name","Email","Level","Role","Date Created","Last Login"]
 
     # For each group
     groupTitles = []
@@ -241,6 +246,20 @@ def userPermissionsReport(userPermissionsCSV,users,groups):
         email = user.email
         level = user.level
         role = user.role
+        # If a custom role
+        if ((user.roleId.lower() != "org_admin") and (user.roleId.lower() != "org_publisher") and (user.roleId.lower() != "org_user")):
+            customRole = gisPortal.users.roles.get_role(user.roleId)
+            role = customRole.name
+            
+        # Get the date the account was created
+        dateCreated = time.strftime("%d/%m/%Y %H:%M:%S",time.localtime(user.created/1000))        
+        # If user has last login
+        if (user.lastLogin != -1):
+            # Get the last login date
+            lastLogin = time.strftime("%d/%m/%Y %H:%M:%S",time.localtime(user.lastLogin/1000))
+        # User has not logged in
+        else:
+            lastLogin = "Not logged in"        
         userGroups = user.groups
         userGroupTitles = []
         for userGroup in userGroups:
@@ -254,6 +273,9 @@ def userPermissionsReport(userPermissionsCSV,users,groups):
             userData.append(email)
             userData.append(level)
             userData.append(role)
+            userData.append(dateCreated)            
+            userData.append(lastLogin)
+            
             # For each group
             for groupTitle in groupTitles:
                 # Add whether user is a member of the group
@@ -277,7 +299,7 @@ def userPermissionsReport(userPermissionsCSV,users,groups):
 
 
 # Start of user content report function
-def userContentReport(userContentCSV,users):
+def userContentReport(gisPortal,userContentCSV,users):
     printMessage("Creating user content report - " + userContentCSV + "...","info")
 
     # Create a CSV writer and setup header
@@ -285,7 +307,7 @@ def userContentReport(userContentCSV,users):
     writer = csv.writer(file, delimiter=",")
 
     # Add in header information for CSV
-    fieldNames = ["Name","Email","Level","Role","Number of Items","Data Usage (MB)"]
+    fieldNames = ["Name","Email","Level","Role","Date Created","Last Login","Number of Items","Data Usage (MB)"]
     writer.writerow(fieldNames)
 
     # For each user
@@ -297,7 +319,21 @@ def userContentReport(userContentCSV,users):
         email = user.email
         level = user.level
         role = user.role
-
+        # If a custom role
+        if ((user.roleId.lower() != "org_admin") and (user.roleId.lower() != "org_publisher") and (user.roleId.lower() != "org_user")):
+            customRole = gisPortal.users.roles.get_role(user.roleId)
+            role = customRole.name
+            
+        # Get the date the account was created
+        dateCreated = time.strftime("%d/%m/%Y %H:%M:%S",time.localtime(user.created/1000))        
+        # If user has last login
+        if (user.lastLogin != -1):
+            # Get the last login date
+            lastLogin = time.strftime("%d/%m/%Y %H:%M:%S",time.localtime(user.lastLogin/1000))
+        # User has not logged in
+        else:
+            lastLogin = "Not logged in"
+            
         # If not a system/general user
         if (username.lower() != "system_publisher") and (username.lower() != "esri_boundaries") and (username.lower() != "esri_demographics") and (username.lower() != "esri_livingatlas") and (username.lower() != "esri_nav"):
             # Add in user details to list
@@ -305,7 +341,9 @@ def userContentReport(userContentCSV,users):
             userData.append(email)
             userData.append(level)
             userData.append(role)
-
+            userData.append(dateCreated)            
+            userData.append(lastLogin)
+                
             # Get the number of items owner by the user
             folders = user.folders
             items = user.items()
