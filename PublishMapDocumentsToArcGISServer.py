@@ -41,8 +41,8 @@ if (useArcGISAPIPython == "true"):
 
 # Set global variables
 # Logging
-enableLogging = "false" # Use within code to print and log messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
-logFile = os.path.join(os.path.dirname(__file__), "") # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
+enableLogging = "true" # Use within code to print and log messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
+logFile = os.path.join(os.path.dirname(__file__), "PublishMapDocumentsToArcGISServer.log") # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
 # Email Use within code to send email - sendEmail(subject,message,attachment)
 sendErrorEmail = "false"
 emailServerName = "" # e.g. smtp.gmail.com
@@ -143,14 +143,17 @@ def mainFunction(portalURL,portalUser,portalPassword,csvFileLocation): # Add par
 
                                     # For each portal item
                                     for portalItem in portalItems:
+                                        # Get the owner of the portal item
+                                        itemOwner = getItemOwner(token,portalURL,portalItem)
+                                                                      
                                         # Set the title and thumbnail of the item in portal
-                                        updateItemDetails(token,portalURL,portalUser,portalItem,row["Title"],row["Thumbnail"])
+                                        updateItemDetails(token,portalURL,itemOwner,portalItem,row["Title"],row["Thumbnail"])
                                         
                                         # Get item IDs for groups
                                         itemIDs = getItemIDGroup(token,portalURL,row["Group Sharing"])
                     
                                         # Set sharing for item
-                                        setSharing(token,portalURL,portalUser,portalItem,row["Organisation Sharing"],itemIDs)                            
+                                        setSharing(token,portalURL,itemOwner,portalItem,row["Organisation Sharing"],itemIDs)                            
                             else:
                                 printMessage("Service not published - There were errors found in the map document...","error")
                         # ArcGIS server connection file does not exist
@@ -484,12 +487,40 @@ def getItemIDs(token,serviceURL):
         else:
             portalProperties = responseJSON.get('portalProperties')
             portalItems = portalProperties.get('portalItems')
+            # Return result
             return portalItems
     except urllib2.URLError, error:
         printMessage("Could not connect...","error")
         printMessage(error,"error")
         return None
 # End of get item IDs function
+
+
+# Start of get item owner function
+def getItemOwner(token,portalURL,portalItem):
+    printMessage("Requesting item owner...","info")
+
+    # Setup the parameters
+    parameters = urllib.urlencode({'token': token,           
+                  'f': 'json'})
+    queryString = parameters.encode('utf-8')
+
+    # Request to search for item
+    try:
+        context = ssl._create_unverified_context()
+        request = urllib2.Request(portalURL + "/sharing/rest/content/items/" + portalItem["itemID"],queryString)
+        responseJSON = json.loads(urllib2.urlopen(request, context=context).read())
+        if "error" in responseJSON:
+            printMessage(responseJSON,"error")
+            return None
+        else:  
+            # Return result
+            return responseJSON["owner"]
+    except urllib2.URLError, error:
+        printMessage("Could not connect...","error")
+        printMessage(error,"error")
+        return None
+# End of get item owner function
 
 
 # Start of set sharing function
@@ -528,7 +559,6 @@ def setSharing(token,portalURL,portalUser,portalItem,organisationSharing,groupSh
 # End of set sharing function
 
 
-
 # Start of update item details function
 def updateItemDetails(token,portalURL,portalUser,portalItem,title,thumbnail):
     printMessage("Updating item title and thumbnail - " + portalItem["itemID"],"info")
@@ -559,7 +589,7 @@ def updateItemDetails(token,portalURL,portalUser,portalItem,title,thumbnail):
 def getItemIDGroup(token,portalURL,groupTitles):
     groupIDs = []
     for groupTitle in groupTitles.split(","):
-        printMessage("Getting Item ID for " + groupTitle + "...","info")        
+        printMessage("Requesting Item ID for " + groupTitle + "...","info")        
 
         # Setup the parameters
         parameters = urllib.urlencode({'token': token,

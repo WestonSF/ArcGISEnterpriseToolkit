@@ -4,7 +4,7 @@
 #             service is down. This tool should be setup as an automated task on the server.       
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    07/02/2014
-# Last Updated:    19/03/2019
+# Last Updated:    08/04/2019
 # Copyright:   (c) Eagle Technology
 # ArcGIS Version:   ArcMap (ArcPy) 10.1+
 # Python Version:   2.7
@@ -55,111 +55,130 @@ output = None
 
 
 # Start of main function
-def mainFunction(agsSiteURL,agsSiteAdminURL,portalURL,portalUsername,portalPassword,service,errorStoppedServices): # Add parameters sent to the script here e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter) 
+def mainFunction(agsSiteURL,agsSiteAdminURL,portalURL,portalUsername,portalPassword,service,queryData,queryMap,errorStoppedServices): # Add parameters sent to the script here e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter) 
     try:
         # --------------------------------------- Start of code --------------------------------------- #
 
-        # Get token
-        token = getToken(portalURL, portalUsername, portalPassword)
+        # If username and password provided
+        token = ""
+        if ((portalUsername) and (portalPassword)):
+            # Get token
+            token = getToken(portalURL, portalUsername, portalPassword)
 
-        # If token received (If no response the script will stop and error in the getToken function)
-        if (token):
-            # Check ArcGIS Server site directory
-            agsVersion = checkAGSSite(agsSiteURL, token)
-            # If response (If no response the script will stop and error in the checkAGSSite function)
-            if (agsVersion):
-                printMessage("ArcGIS Server site " + agsSiteURL + " is running correctly on version " + str(agsVersion) + "...","info")
+        # Check ArcGIS Server site directory
+        agsVersion = checkAGSSite(agsSiteURL, token)
+        # If response (If no response the script will stop and error in the checkAGSSite function)
+        if (agsVersion):
+            printMessage("ArcGIS Server site " + agsSiteURL + " is running correctly on version " + str(agsVersion) + "...","info")
 
-                # List to hold services and their status
-                servicesInfo = []
-                
-                # If a service is provided
-                if (service):
-                    services = []
-                    services.append(service)
-                else:
+            # List to hold services and their status
+            servicesInfo = []
+            
+            # If a service is provided
+            if (service):
+                services = []
+                services.append(service)
+            else:
+                # If admin URL provided
+                if (agsSiteAdminURL):
                     # Get all services (If no response the script will stop and error in the getServices function)
                     services = getServices(agsSiteAdminURL, token)
 
-                # Query all services
-                # Iterate through services
-                for eachService in services:
+            # Query all services
+            # Iterate through services
+            for eachService in services:
+                # If admin URL provided
+                realtimeStatus = "Unavailable"
+                if (agsSiteAdminURL):
                     # Get the service status
                     realtimeStatus = getServiceStatus(agsSiteAdminURL, token, eachService)          
-                    # Check the service endpoint
-                    serviceInfo = checkService(agsSiteURL, token, eachService)
-                    # Query the service if map or feature service
-                    if ((eachService.split(".")[-1].lower() == "mapserver") or (eachService.split(".")[-1].lower() == "featureserver")):
-                        queryResultCount = queryService(agsSiteURL, serviceInfo, token, eachService)
-                    else:
-                        queryResultCount = None
-                    # Add service info to list
-                    servicesInfo.append({'service': eachService, 'status': realtimeStatus, 'info': serviceInfo, 'queryInfo': queryResultCount})
-
-                runningServices = 0
-                stoppedServices = 0
-                errorServices = 0
-                queryErrorServices = 0
-                errorMessages = []
-                # Iterate through services info dictionary
-                for serviceInfo in servicesInfo:
-                    # If service is stopped
-                    if "stopped" in str(serviceInfo["status"]).lower():
-                        stoppedServices += 1
-                        # If checking for stopped services or single service provided
-                        if ((errorStoppedServices.lower() == "true") or (service)):
-                            errorMessages.append(serviceInfo["service"] + " - " + "Service is stopped...")                            
-                    # If service started
-                    else:
-                        runningServices += 1
-                        # If error in result
-                        if "error" in str(serviceInfo["info"]).lower():
-                            errorMessages.append(serviceInfo["service"] + " - " + str(serviceInfo["info"]))
-                            errorServices += 1
-                        # If error in result
-                        if "error" in str(serviceInfo["queryInfo"]).lower():
-                            errorMessages.append(serviceInfo["service"] + " - " + str(serviceInfo["queryInfo"]))
-                            queryErrorServices += 1
-
-                # If a service is provided
-                if (service):
-                    # If any errors
-                    if (len(errorMessages) > 0):
-                        # For each error message
-                        for errorMessage in errorMessages:
-                            printMessage(errorMessage,"error")
-
-                        if (sendErrorEmail == "true"):
-                            message = "There is an issue with one or more services on the ArcGIS Server site - " + agsSiteURL + "..." + "<br/><br/>"
-                            for errorMessage in errorMessages:
-                                message += errorMessage + "<br/>"
-                            # Send email
-                            sendEmail(message,None)                            
-                    else:
-                        printMessage(service + " is running correctly...","info")  
+                # Check the service endpoint
+                serviceInfo = checkService(agsSiteURL, token, eachService)
+                # Query the service if map or feature service
+                if ((queryData.lower() == "true") and ((eachService.split(".")[-1].lower() == "mapserver") or (eachService.split(".")[-1].lower() == "featureserver"))):
+                    queryResultCount = queryService(agsSiteURL, serviceInfo, token, eachService)
                 else:
-                    printMessage(str(runningServices) + " services are running...","info")
-                    printMessage(str(stoppedServices) + " services are stopped...","info")
-                    printMessage(str(errorServices) + " services have errors...","info")
-                    printMessage(str(queryErrorServices) + " map or feature services have data errors...","info")
-                    # If any errors
-                    if (len(errorMessages) > 0):
-                        # For each error message
-                        for errorMessage in errorMessages:
-                            printMessage(errorMessage,"error")
+                    queryResultCount = None
+                # Query the map if a cached map service
+                if ((str(queryMap).lower() == "true") and (eachService.split(".")[-1].lower() == "mapserver") and (str(serviceInfo["singleFusedMapCache"]).lower() == "true")):
+                    mapResultCount = queryServiceMap(agsSiteURL, serviceInfo, token, eachService)
+                else:
+                    mapResultCount = None
+                
+                # Add service info to list
+                servicesInfo.append({'service': eachService, 'info': serviceInfo, 'status': realtimeStatus, 'mapInfo': mapResultCount, 'queryInfo': queryResultCount})
 
-                        if (sendErrorEmail == "true"):
-                            message = "There is an issue with one or more services on the ArcGIS Server site - " + agsSiteURL + "..." + "<br/><br/>"
-                            message += str(runningServices) + " services are running..." + "<br/>"
-                            message += str(stoppedServices) + " services are stopped..." + "<br/>"
-                            message += str(errorServices) + " services have errors..." + "<br/>"
-                            message += str(queryErrorServices) + " map or feature services have data errors..." + "<br/><br/>"
-                            for errorMessage in errorMessages:
-                                message += errorMessage + "<br/>"
-                            # Send email
-                            sendEmail(message,None)   
-                    else:
-                        printMessage("All services are running correctly...","info")  
+            runningServices = 0
+            stoppedServices = 0
+            errorServices = 0
+            queryDataErrorServices = 0
+            queryMapErrorServices = 0
+            errorMessages = []
+            # Iterate through services info dictionary
+            for serviceInfo in servicesInfo:
+                # If service is stopped
+                if "stopped" in str(serviceInfo["status"]).lower():
+                    stoppedServices += 1
+                    # If checking for stopped services or single service provided
+                    if ((errorStoppedServices.lower() == "true") or (service)):
+                        errorMessages.append(serviceInfo["service"] + " - " + "Service is stopped...")                            
+                # If service started
+                else:
+                    runningServices += 1
+                    # If error in result
+                    if "error" in str(serviceInfo["info"]).lower():
+                        errorMessages.append(serviceInfo["service"] + " - " + str(serviceInfo["info"]))
+                        errorServices += 1
+                    # If error in result
+                    if "error" in str(serviceInfo["queryInfo"]).lower():
+                        errorMessages.append(serviceInfo["service"] + " - " + str(serviceInfo["queryInfo"]))
+                        queryDataErrorServices += 1
+                    # If error in result
+                    if "error" in str(serviceInfo["mapInfo"]).lower():
+                        errorMessages.append(serviceInfo["service"] + " - " + str(serviceInfo["mapInfo"]))
+                        queryMapErrorServices += 1
+                        
+            # If a service is provided
+            if (service):
+                # If any errors
+                if (len(errorMessages) > 0):
+                    # For each error message
+                    for errorMessage in errorMessages:
+                        printMessage(errorMessage,"error")
+
+                    if (sendErrorEmail == "true"):
+                        message = "There is an issue with one or more services on the ArcGIS Server site - " + agsSiteURL + "..." + "<br/><br/>"
+                        for errorMessage in errorMessages:
+                            message += errorMessage + "<br/>"
+                        # Send email
+                        sendEmail(message,None)                            
+                else:
+                    printMessage(service + " is running correctly...","info")  
+            else:
+                printMessage(str(runningServices) + " services are running...","info")
+                printMessage(str(stoppedServices) + " services are stopped...","info")
+                printMessage(str(errorServices) + " services have errors...","info")
+                printMessage(str(queryDataErrorServices) + " map or feature services have data errors...","info")
+                printMessage(str(queryMapErrorServices) + " map services are not drawing correctly...","info")
+                # If any errors
+                if (len(errorMessages) > 0):
+                    # For each error message
+                    for errorMessage in errorMessages:
+                        printMessage(errorMessage,"error")
+
+                    if (sendErrorEmail == "true"):
+                        message = "There is an issue with one or more services on the ArcGIS Server site - " + agsSiteURL + "..." + "<br/><br/>"
+                        message += str(runningServices) + " services are running..." + "<br/>"
+                        message += str(stoppedServices) + " services are stopped..." + "<br/>"
+                        message += str(errorServices) + " services have errors..." + "<br/>"
+                        message += str(queryDataErrorServices) + " map or feature services have data errors..." + "<br/>"
+                        message += str(queryMapErrorServices) + " map services are not drawing correctly..." + "<br/><br/>"
+                        for errorMessage in errorMessages:
+                            message += errorMessage + "<br/>"
+                        # Send email
+                        sendEmail(message,None)   
+                else:
+                    printMessage("All services are running correctly...","info")  
 
         # --------------------------------------- End of code --------------------------------------- #  
             
@@ -358,7 +377,7 @@ def checkService(agsSiteURL, token, service):
         context = ssl._create_unverified_context()
         request = urllib2.Request(agsSiteURL + "/rest/services/" + service.replace(".", "/"),queryString)
         responseJSON = json.loads(urllib2.urlopen(request, context=context).read())
-        
+
         if "error" in str(json.dumps(responseJSON)).lower():
             return responseJSON
         else:
@@ -411,6 +430,31 @@ def queryService(agsSiteURL, serviceInfo, token, service):
     else:
         return "Error: No layers in the service..."  
 # End of query service function
+
+
+# Start of query service map function
+def queryServiceMap(agsSiteURL, serviceInfo, token, service):   
+    # Setup the parameters
+    parameters = urllib.urlencode({'token': token,
+                  'format': 'png',
+                  'bbox': str(serviceInfo["initialExtent"]["xmin"]) + "," + str(serviceInfo["initialExtent"]["ymin"]) + str(serviceInfo["initialExtent"]["xmax"]) + str(serviceInfo["initialExtent"]["ymax"]),
+                  'f': 'json'})
+    queryString = parameters.encode('utf-8')
+
+    # Post request
+    try:
+        printMessage("Querying map in service - " + agsSiteURL + "/rest/services/" + service.replace(".", "/") + "/export" + "...","info")           
+        context = ssl._create_unverified_context()
+        request = urllib2.Request(agsSiteURL + "/rest/services/" + service.replace(".", "/") + "/export",queryString)
+        responseJSON = json.loads(urllib2.urlopen(request, context=context).read())
+        if "error" in str(responseJSON).lower():
+            return responseJSON
+        else:
+            # Return response
+            return responseJSON["href"]                   
+    except urllib2.URLError, error:
+        return "Error: Could not connect..." 
+# End of query service map function
 
 
 # Start of get token function
