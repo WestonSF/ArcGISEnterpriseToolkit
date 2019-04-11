@@ -156,6 +156,7 @@ def mainFunction(portalURL,portalUser,portalPassword,csvFileLocation): # Add par
                                         setSharing(token,portalURL,itemOwner,portalItem,row["Organisation Sharing"],itemIDs)                            
                             else:
                                 printMessage("Service not published - There were errors found in the map document...","error")
+                                printMessage(analysisSD['errors'],"error")
                         # ArcGIS server connection file does not exist
                         else:
                             printMessage("Service not published - ArcGIS server connection file does not exist - " + row["ArcGIS Server Connection"] + "...","error")                        

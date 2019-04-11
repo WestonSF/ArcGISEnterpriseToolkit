@@ -2,15 +2,15 @@
 # Name:                 Create Portal Content
 # Purpose:              Creates a list of portal content from a CSV file. Can set to only create a single
 #                       item type from the CSV or everything in the CSV.
-#                       - Creates groups and web maps listed in the CSV.
+#                       - Creates groups,web maps, web mapping apps and dashboards listed in the CSV.
 #                       - Shares item with organisation and/or groups if specified.
 #                       - Adds users to group if specified.
 #                       - Adds layers to web map if specified.
-#                       - If web map already exists, will update the item details, but will not update the layers and basemap
+#                       - If web map/web application/dashboard already exists, will update the item details, but will not update the layers and basemap
 #                       - If group already exists, will update the item details and add users to the group
 # Author:               Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:         24/01/2019
-# Last Updated:         21/02/2019
+# Last Updated:         10/04/2019
 # ArcGIS Version:       ArcGIS API for Python 1.5.2+
 # Python Version:       3.6.5+ (Anaconda Distribution)
 #--------------------------------
@@ -35,11 +35,12 @@ if (useArcPy == "true"):
 if (useArcGISAPIPython == "true"):
     # Import arcgis module
     import arcgis
+import json
 
 # Set global variables
 # Logging
-enableLogging = "false" # Use within code to print and log messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
-logFile = os.path.join(os.path.dirname(__file__), "") # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
+enableLogging = "true" # Use within code to print and log messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
+logFile = os.path.join(os.path.dirname(__file__), "CreatePortalContent.log") # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
 # Email Use within code to send email - sendEmail(subject,message,attachment)
 sendErrorEmail = "false"
 emailServerName = "" # e.g. smtp.gmail.com
@@ -93,6 +94,12 @@ def mainFunction(portalURL,portalUser,portalPassword,csvFileLocation,setItemType
                         elif (itemType.lower().replace(" ", "") == "webmap"):
                             # Create web map
                             createWebMap(gisPortal,row["Title"],row["Summary"],row["Description"],row["Tags"],row["Thumbnail"],row["Web Map Basemap"],row["Web Map Layers"],row["Organisation Sharing"],row["Group Sharing"])
+                        elif (itemType.lower().replace(" ", "") == "webmappingapplication"):
+                            # Create web mapping application
+                            createWebApplication(portalURL,gisPortal,row["Title"],row["Summary"],row["Description"],row["Tags"],row["Thumbnail"],row["Organisation Sharing"],row["Group Sharing"],row["Data"])
+                        elif (itemType.lower().replace(" ", "") == "dashboard"):
+                            # Create dashbaord
+                            createDashboard(gisPortal,row["Title"],row["Summary"],row["Description"],row["Tags"],row["Thumbnail"],row["Organisation Sharing"],row["Group Sharing"],row["Data"])
                         else:
                             printMessage(row["Title"] + " item in CSV does not have a valid type set and will not be created...","warning")
                     else:
@@ -207,6 +214,119 @@ def createGroup(gisPortal,title,summary,description,tags,thumbnail,organisationS
 # End of create group function
 
 
+# Start of create web mapping application function
+def createWebApplication(portalURL,gisPortal,title,summary,description,tags,thumbnail,organisationSharing,groupSharing,dataFile):
+    printMessage("Creating web mapping application - " + title + "...","info")
+            
+    # FUNCTION - Search portal to see if web application is already there
+    webApplicationExists = searchPortalForItem(gisPortal,title,"Web Mapping Application")
+
+    # Create the web map properties
+    itemProperties = {'title':title,
+                      'type':"Web Mapping Application",
+                      'typeKeywords':"JavaScript,Map,Mapping Site,Online Map,Ready To Use,WAB2D,Web AppBuilder,Web Map",
+                      'description':description,
+                      'snippet':summary,
+                      'tags':tags,
+                      'thumbnail':thumbnail,
+                      'access':organisationSharing.lower()}
+        
+    # If the web application has not been created
+    if (webApplicationExists == False):
+        # Add the web application
+        item = gisPortal.content.add(item_properties=itemProperties)
+
+        # Get the JSON data from the file if provided
+        jsonData = "{}"
+        if (dataFile):
+            # If the file exists
+            if (os.path.exists(dataFile)):
+                with open(dataFile) as jsonFile:
+                    # Update the item ID
+                    data = json.load(jsonFile)
+                    data["appItemId"] = item.id
+                    jsonData = json.dumps(data)
+            else:
+                printMessage(title + " web mapping application data does not exist - " + dataFile + "...","warning")
+        # Update the URL and data properties 
+        itemProperties = {'url':portalURL + "/apps/webappviewer/index.html?id=" + item.id,
+                          'text':jsonData}
+        item.update(itemProperties)
+        printMessage(title + " web mapping application created - " + item.id + "...","info")
+        
+        # If sharing to group(s)
+        if (groupSharing):
+            printMessage("Sharing with the following groups - " + groupSharing + "...","info")
+            groupSharing = groupSharing.split(",")
+            item.share(groups=groupSharing)
+    # Web application already exists
+    else:
+        # Get the item ID
+        itemID = getIDforPortalItem(gisPortal,title,"web mapping application")
+        # Get the web application
+        item = gisPortal.content.get(itemID)
+
+        # Update the web application
+        item.update(itemProperties, thumbnail=thumbnail)
+        printMessage(title + " web mapping application updated - " + itemID + "...","info")
+# End of create web mapping application function
+
+
+# Start of create dashboard function
+def createDashboard(gisPortal,title,summary,description,tags,thumbnail,organisationSharing,groupSharing,dataFile):
+    printMessage("Creating dashboard - " + title + "...","info")
+            
+    # FUNCTION - Search portal to see if web application is already there
+    dashboardExists = searchPortalForItem(gisPortal,title,"Dashboard")
+
+    # Create the web map properties
+    itemProperties = {'title':title,
+                      'type':"Dashboard",
+                      'typeKeywords': "Dashboard,Operations Dashboard",
+                      'description':description,
+                      'snippet':summary,
+                      'tags':tags,
+                      'thumbnail':thumbnail,
+                      'access':organisationSharing.lower()}
+        
+    # If the dashboard has not been created
+    if (dashboardExists == False):
+        # Add the dashboard
+        item = gisPortal.content.add(item_properties=itemProperties)
+
+        # Get the JSON data from the file if provided
+        jsonData = "{}"
+        if (dataFile):
+            # If the file exists
+            if (os.path.exists(dataFile)):
+                with open(dataFile) as jsonFile:
+                    data = json.load(jsonFile)
+                    jsonData = json.dumps(data)
+            else:
+                printMessage(title + " dashboard data does not exist - " + dataFile + "...","warning")
+        # Update the URL and data properties 
+        itemProperties = {'text':jsonData}
+        item.update(itemProperties)
+        printMessage(title + " dashboard created - " + item.id + "...","info")
+        
+        # If sharing to group(s)
+        if (groupSharing):
+            printMessage("Sharing with the following groups - " + groupSharing + "...","info")
+            groupSharing = groupSharing.split(",")
+            item.share(groups=groupSharing)
+    # Dashboard already exists
+    else:
+        # Get the item ID
+        itemID = getIDforPortalItem(gisPortal,title,"dashboard")
+        # Get the dashboard
+        item = gisPortal.content.get(itemID)
+
+        # Update the dashboard
+        item.update(itemProperties, thumbnail=thumbnail)
+        printMessage(title + " dashboard updated - " + itemID + "...","info")
+# End of create dashboard function
+
+
 # Start of create web map function
 def createWebMap(gisPortal,title,summary,description,tags,thumbnail,webmapBasemap,webmapLayers,organisationSharing,groupSharing):
     printMessage("Creating web map - " + title + "...","info")
@@ -254,8 +374,8 @@ def createWebMap(gisPortal,title,summary,description,tags,thumbnail,webmapBasema
         # Get the item ID
         itemID = getIDforPortalItem(gisPortal,title,"web map")
         # Get the web map
-        webmapItem = gisPortal.content.get(itemID)
-        webmap = arcgis.mapping.WebMap(webmapItem)
+        item = gisPortal.content.get(itemID)
+        webmap = arcgis.mapping.WebMap(item)
             
         # Update the web map
         webmap.update(itemProperties, thumbnail=thumbnail)
