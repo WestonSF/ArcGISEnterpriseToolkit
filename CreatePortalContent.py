@@ -10,7 +10,7 @@
 #                       - If group already exists, will update the item details and add users to the group
 # Author:               Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:         24/01/2019
-# Last Updated:         10/04/2019
+# Last Updated:         23/05/2019
 # ArcGIS Version:       ArcGIS API for Python 1.5.2+
 # Python Version:       3.6.5+ (Anaconda Distribution)
 #--------------------------------
@@ -93,7 +93,7 @@ def mainFunction(portalURL,portalUser,portalPassword,csvFileLocation,setItemType
                             createGroup(gisPortal,row["Title"],row["Summary"],row["Description"],row["Tags"],row["Thumbnail"],row["Organisation Sharing"],row["Members"])                        
                         elif (itemType.lower().replace(" ", "") == "webmap"):
                             # Create web map
-                            createWebMap(gisPortal,row["Title"],row["Summary"],row["Description"],row["Tags"],row["Thumbnail"],row["Web Map Basemap"],row["Web Map Layers"],row["Organisation Sharing"],row["Group Sharing"])
+                            createWebMap(gisPortal,row["Title"],row["Summary"],row["Description"],row["Tags"],row["Thumbnail"],row["Organisation Sharing"],row["Group Sharing"],row["Data"])
                         elif (itemType.lower().replace(" ", "") == "webmappingapplication"):
                             # Create web mapping application
                             createWebApplication(portalURL,gisPortal,row["Title"],row["Summary"],row["Description"],row["Tags"],row["Thumbnail"],row["Organisation Sharing"],row["Group Sharing"],row["Data"])
@@ -328,7 +328,7 @@ def createDashboard(gisPortal,title,summary,description,tags,thumbnail,organisat
 
 
 # Start of create web map function
-def createWebMap(gisPortal,title,summary,description,tags,thumbnail,webmapBasemap,webmapLayers,organisationSharing,groupSharing):
+def createWebMap(gisPortal,title,summary,description,tags,thumbnail,organisationSharing,groupSharing,dataFile):
     printMessage("Creating web map - " + title + "...","info")
             
     # FUNCTION - Search portal to see if web map is already there
@@ -336,6 +336,7 @@ def createWebMap(gisPortal,title,summary,description,tags,thumbnail,webmapBasema
 
     # Create the web map properties
     itemProperties = {'title':title,
+                      'type':"Web Map",
                       'description':description,
                       'snippet':summary,
                       'tags':tags,
@@ -344,24 +345,23 @@ def createWebMap(gisPortal,title,summary,description,tags,thumbnail,webmapBasema
         
     # If the web map has not been created
     if (webmapExists == False):
-        # If basemap provided
-        if (webmapBasemap):
-            # Get the item ID for the basemap
-            itemID = getIDforPortalItem(gisPortal,webmapBasemap,"Web Map")
-            basemap = gisPortal.content.get(itemID)
-            # Create a web map object
-            webmap = arcgis.mapping.WebMap(basemap)
-        else:
-            # Create a web map object
-            webmap = arcgis.mapping.WebMap()
+        # Add the web map
+        item = gisPortal.content.add(item_properties=itemProperties)
 
-        # If layers provided
-        if (webmapLayers):
-            # Add layers to web map
-            addLayersToWebmap(gisPortal,webmap,webmapLayers)
-                    
-        # Save the web map
-        item = webmap.save(itemProperties, thumbnail=thumbnail)
+        # Get the JSON data from the file if provided
+        jsonData = "{}"
+        if (dataFile):
+            # If the file exists
+            if (os.path.exists(dataFile)):
+                with open(dataFile) as jsonFile:
+                    jsonData = json.load(jsonFile)
+                    # Add data to item properties
+                    itemProperties['text'] = jsonData
+            else:
+                printMessage(title + " web map data does not exist - " + dataFile + "...","warning")
+        # Update the URL and data properties 
+        itemProperties = {'text':jsonData}
+        item.update(itemProperties, thumbnail=thumbnail)
         printMessage(title + " web map created - " + item.id + "...","info")
 
         # If sharing to group(s)
@@ -375,33 +375,11 @@ def createWebMap(gisPortal,title,summary,description,tags,thumbnail,webmapBasema
         itemID = getIDforPortalItem(gisPortal,title,"web map")
         # Get the web map
         item = gisPortal.content.get(itemID)
-        webmap = arcgis.mapping.WebMap(item)
             
         # Update the web map
-        webmap.update(itemProperties, thumbnail=thumbnail)
+        item.update(itemProperties, thumbnail=thumbnail)
         printMessage(title + " web map updated - " + itemID + "...","info")
 # End of create web map function
-
-            
-# Start of add layers to web map function
-def addLayersToWebmap(gisPortal,webmap,webmapLayers):
-    # For each of the web map layers
-    for webmapLayer in webmapLayers.split(","):
-        printMessage("Adding layer to web map - " + webmapLayer + "...","info")
-        # Get the item ID
-        itemID = getIDforPortalItem(gisPortal,webmapLayer.split(":")[0],webmapLayer.split(":")[-1])
-        if (itemID):
-            # Add layer to the web map
-            layerItem = gisPortal.content.get(itemID)
-            # For each layer in the item
-            for layer in layerItem.layers:
-                webmap.add_layer(layer, {'visibility':True})
-            # For each table in the item
-            for table in layerItem.tables:
-                webmap.add_table(table, None)
-        else:
-            printMessage("Layer not found in portal - " + webmapLayer + "...","error")
-# End of add layers to web map function
 
 
 # Start of get ID for portal item function
