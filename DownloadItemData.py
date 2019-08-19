@@ -1,10 +1,10 @@
 #-------------------------------------------------------------
 # Name:                 Download Item Data
-# Purpose:              Downloads data as a JSON file from a specified
-#                       item in portal.
+# Purpose:              Downloads data as a JSON file from a specified item in portal or downloads
+#                       all items in a portal site and zips these up.
 # Author:               Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:         09/04/2019
-# Last Updated:         09/04/2019
+# Last Updated:         19/08/2019
 # ArcGIS Version:       ArcGIS API for Python 1.5.1+
 # Python Version:       3.6.5+ (Anaconda 5.2+)
 #--------------------------------
@@ -14,8 +14,6 @@ import os
 import sys
 import logging
 import smtplib
-import time
-import csv
 # Import ArcGIS modules
 useArcPy = "false"
 useArcGISAPIPython = "true"
@@ -27,6 +25,9 @@ if (useArcPy == "true"):
 if (useArcGISAPIPython == "true"):
     # Import arcgis module
     import arcgis
+import time
+import csv
+import shutil
 
 # Set global variables
 # Logging
@@ -57,13 +58,59 @@ def mainFunction(portalURL,portalUser,portalPassword,itemID,downloadLocation): #
         printMessage("Connecting to GIS Portal - " + portalURL + "...","info")
         gisPortal = arcgis.GIS(url=portalURL, username=portalUser, password=portalPassword, verify_cert=False)
 
-        # Download the data
-        printMessage("Downloading data from item - " + itemID + "...","info")        
-        item = gisPortal.content.get(itemID)
-        item.download(save_path=os.path.dirname(downloadLocation))
-     
-        # Rename the downloaded file to the one specified
-        os.rename(os.path.join(os.path.dirname(downloadLocation),item.title), os.path.join(os.path.dirname(downloadLocation),os.path.basename(downloadLocation)))
+        # If item ID is provided
+        if (itemID):
+            item = gisPortal.content.get(itemID)
+            items = []
+            items.append(item)
+        # Else get all items
+        else:
+            # Query all items in the portal
+            items = gisPortal.content.search(query="",max_items=10000)
+
+            # Create a new folder if it does not exist already
+            if not os.path.exists(os.path.join(downloadLocation,"AGSBackup-" + time.strftime("%Y%m%d"))):
+                os.makedirs(os.path.join(downloadLocation,"AGSBackup-" + time.strftime("%Y%m%d")))
+            downloadLocation = os.path.join(downloadLocation,"AGSBackup-" + time.strftime("%Y%m%d"))
+
+        # For each item
+        for item in items:
+            # If item is a feature service
+            if (item.type.lower() == "feature service"):
+                # If a hosted service
+                if "Hosted Service" in item.typeKeywords:
+                    printMessage("Exporting data for feature service - " + item.id + " (Title - " + item.title + ")...","info")
+                    fgdbItem = item.export(item.title, "File Geodatabase")
+                    printMessage("Downloading data...","info")
+                    result = fgdbItem.download(downloadLocation)
+                    fgdbItem.delete()
+                else:
+                    # Download the JSON data
+                    printMessage("Downloading data from item - " + item.id + " (Title - " + item.title + ")...","info")         
+                    result = item.download(downloadLocation)                    
+            elif (item.type.lower() == "code attachment"):
+                printMessage("Not downloading data for code attachment - " + item.id + " (Title - " + item.title + ")...","warning")
+                result = None
+            else:
+                # Download the JSON data
+                printMessage("Downloading data from item - " + item.id + " (Title - " + item.title + ")...","info")         
+                result = item.download(downloadLocation)
+
+            # If data is downloaded
+            if result:
+                # If there is no file extension
+                filePath = result
+                fileExtension = os.path.splitext(result)[1]
+                if not fileExtension:
+                    # If the file aready exists
+                    if os.path.isfile(result + ".json"):
+                        # Delete file
+                        os.remove(result + ".json")
+                    os.rename(result, result + ".json")
+                    filePath = result + ".json"       
+                printMessage("Downloaded data to " + filePath,"info")
+            else:
+                printMessage("There was an error downloading the data for item " + item.id,"error")      
         # --------------------------------------- End of code --------------------------------------- #
         # If called from ArcGIS GP tool
         if __name__ == '__main__':

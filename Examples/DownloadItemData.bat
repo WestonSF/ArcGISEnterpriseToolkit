@@ -3,11 +3,11 @@
 :: 	GIS site URL
 :: 	Admin username in GIS site
 :: 	Admin password in GIS site
-::	Item ID of the item in portal to download e.g. "2621136d1c6a4ee2ade145166e015477"
-::	Location of the file where data will be saved e.g. "C:\Temp\Data.json"
+::	Item ID of the item in portal to download. If no item ID is specified all items in the site will be downloaded e.g. "2621136d1c6a4ee2ade145166e015477" or ""
+::	Folder where data will be saved. If downloading all items, a new folder will be created e.g. "C:\Temp"
 "C:\Program Files\ArcGIS\Pro\bin\Python\envs\arcgispro-py3\python.exe" "C:\Development\Python for ArcGIS Tools\ArcGIS Enterprise Toolkit\DownloadItemData.py" ^
  "https://organisation.maps.arcgis.com" ^
- "sfweston" ^
+ "user" ^
  "*****" ^
- "b3d3ba2119c145c4af38eacf49080650" ^
- "C:\Temp\Data.json"
+ "" ^
+ "C:\Temp"
