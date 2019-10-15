@@ -2,15 +2,15 @@
 # Name:                 Create Portal Content
 # Purpose:              Creates a list of portal content from a CSV file. Can set to only create a single
 #                       item type from the CSV or everything in the CSV.
-#                       - Creates groups,web maps, web mapping apps and dashboards listed in the CSV.
+#                       - Creates groups, web maps, web mapping apps, dashboards and feature services listed in the CSV.
 #                       - Shares item with organisation and/or groups if specified.
 #                       - Adds users to group if specified.
-#                       - Adds layers to web map if specified.
-#                       - If web map/web application/dashboard already exists, will update the item details, but will not update the layers and basemap
 #                       - If group already exists, will update the item details and add users to the group
+#                       - Publishes feature service from a zipped FGDB
+#                       - If feature service already exists, updates data in feature service from zipped FGDB
 # Author:               Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:         24/01/2019
-# Last Updated:         23/05/2019
+# Last Updated:         15/10/2019
 # ArcGIS Version:       ArcGIS API for Python 1.5.2+
 # Python Version:       3.6.5+ (Anaconda Distribution)
 #--------------------------------
@@ -87,19 +87,49 @@ def mainFunction(portalURL,portalUser,portalPassword,csvFileLocation,setItemType
                 # If processing this row
                 if (processRow == True):
                     # If a title is provided
-                    if (row["Title"].replace(" ", "")):              
+                    if (row["Title"].replace(" ", "")):
+                        # Set organisation sharing
+                        if row["Organisation Sharing"]:
+                            organisationSharing = row["Organisation Sharing"]
+                        else:
+                            organisationSharing = "Private"                                                    
+                        # Set group sharing
+                        if row["Group Sharing"]:
+                            # Create a list of group IDs to share with
+                            groupSharing = []
+                            groupSharingTitles = row["Group Sharing"].split(",")
+                            for groupTitle in groupSharingTitles:
+                                # Get the item ID of the group
+                                itemID = getIDforPortalItem(gisPortal,groupTitle,"group")
+                                groupSharing.append(itemID)
+                            groupSharing = ','.join(groupSharing)
+                        else:
+                            groupSharing = ""
+
                         if (itemType.lower().replace(" ", "") == "group"):
                             # Create group
-                            createGroup(gisPortal,row["Title"],row["Summary"],row["Description"],row["Tags"],row["Thumbnail"],row["Organisation Sharing"],row["Members"])                        
+                            createGroup(gisPortal,row["Title"],row["Summary"],row["Description"],row["Tags"],row["Thumbnail"],organisationSharing,row["Members"])                        
                         elif (itemType.lower().replace(" ", "") == "webmap"):
                             # Create web map
-                            createWebMap(gisPortal,row["Title"],row["Summary"],row["Description"],row["Tags"],row["Thumbnail"],row["Organisation Sharing"],row["Group Sharing"],row["Data"])
+                            createWebMap(gisPortal,row["Title"],row["Summary"],row["Description"],row["Tags"],row["Thumbnail"],organisationSharing,groupSharing,row["Data"])
+                        elif (itemType.lower().replace(" ", "") == "webscene"):
+                            # Create web scene
+                            createWebScene(gisPortal,row["Title"],row["Summary"],row["Description"],row["Tags"],row["Thumbnail"],organisationSharing,groupSharing,row["Data"])
                         elif (itemType.lower().replace(" ", "") == "webmappingapplication"):
                             # Create web mapping application
-                            createWebApplication(portalURL,gisPortal,row["Title"],row["Summary"],row["Description"],row["Tags"],row["Thumbnail"],row["Organisation Sharing"],row["Group Sharing"],row["Data"])
+                            createWebApplication(portalURL,gisPortal,row["Title"],row["Summary"],row["Description"],row["Tags"],row["Thumbnail"],organisationSharing,groupSharing,row["Data"])
                         elif (itemType.lower().replace(" ", "") == "dashboard"):
-                            # Create dashbaord
-                            createDashboard(gisPortal,row["Title"],row["Summary"],row["Description"],row["Tags"],row["Thumbnail"],row["Organisation Sharing"],row["Group Sharing"],row["Data"])
+                            # Create dashboard
+                            createDashboard(gisPortal,row["Title"],row["Summary"],row["Description"],row["Tags"],row["Thumbnail"],organisationSharing,groupSharing,row["Data"])
+                        elif (itemType.lower().replace(" ", "") == "form"):
+                            # Create form
+                            createForm(gisPortal,row["Title"],row["Summary"],row["Description"],row["Tags"],row["Thumbnail"],organisationSharing,groupSharing,row["Data"])
+                        elif (itemType.lower().replace(" ", "") == "featureservice"):
+                            # Create feature service
+                            createFeatureService(gisPortal,row["Title"],row["Summary"],row["Description"],row["Tags"],row["Thumbnail"],organisationSharing,groupSharing,row["Data"])
+                        elif (itemType.lower().replace(" ", "") == "featureserviceview"):
+                            # Create feature service view
+                            createFeatureServiceView(gisPortal,row["Title"],row["Summary"],row["Description"],row["Tags"],row["Thumbnail"],organisationSharing,groupSharing,row["Data"])
                         else:
                             printMessage(row["Title"] + " item in CSV does not have a valid type set and will not be created...","warning")
                     else:
@@ -203,7 +233,7 @@ def createGroup(gisPortal,title,summary,description,tags,thumbnail,organisationS
                      sort_order ='asc',
                      is_view_only=False,
                      users_update_items=False)
-        printMessage(title + " group updated - " + itemID + "...","info")
+        printMessage(title + " group item properties updated - " + itemID + "...","info")
 
     # If users are provided
     if members:
@@ -221,7 +251,7 @@ def createWebApplication(portalURL,gisPortal,title,summary,description,tags,thum
     # FUNCTION - Search portal to see if web application is already there
     webApplicationExists = searchPortalForItem(gisPortal,title,"Web Mapping Application")
 
-    # Create the web map properties
+    # Create the web mapping application properties
     itemProperties = {'title':title,
                       'type':"Web Mapping Application",
                       'typeKeywords':"JavaScript,Map,Mapping Site,Online Map,Ready To Use,WAB2D,Web AppBuilder,Web Map",
@@ -230,7 +260,8 @@ def createWebApplication(portalURL,gisPortal,title,summary,description,tags,thum
                       'tags':tags,
                       'thumbnail':thumbnail,
                       'access':organisationSharing.lower()}
-        
+
+    item = ""        
     # If the web application has not been created
     if (webApplicationExists == False):
         # Add the web application
@@ -253,12 +284,6 @@ def createWebApplication(portalURL,gisPortal,title,summary,description,tags,thum
                           'text':jsonData}
         item.update(itemProperties)
         printMessage(title + " web mapping application created - " + item.id + "...","info")
-        
-        # If sharing to group(s)
-        if (groupSharing):
-            printMessage("Sharing with the following groups - " + groupSharing + "...","info")
-            groupSharing = groupSharing.split(",")
-            item.share(groups=groupSharing)
     # Web application already exists
     else:
         # Get the item ID
@@ -268,7 +293,12 @@ def createWebApplication(portalURL,gisPortal,title,summary,description,tags,thum
 
         # Update the web application
         item.update(itemProperties, thumbnail=thumbnail)
-        printMessage(title + " web mapping application updated - " + itemID + "...","info")
+        printMessage(title + " web mapping application item properties updated - " + itemID + "...","info")
+
+    # If sharing to group(s)
+    if (groupSharing) and (item):
+        printMessage("Sharing with the following groups - " + groupSharing + "...","info")
+        item.share(groups=groupSharing)        
 # End of create web mapping application function
 
 
@@ -279,7 +309,7 @@ def createDashboard(gisPortal,title,summary,description,tags,thumbnail,organisat
     # FUNCTION - Search portal to see if web application is already there
     dashboardExists = searchPortalForItem(gisPortal,title,"Dashboard")
 
-    # Create the web map properties
+    # Create the dashboard properties
     itemProperties = {'title':title,
                       'type':"Dashboard",
                       'typeKeywords': "Dashboard,Operations Dashboard",
@@ -288,7 +318,8 @@ def createDashboard(gisPortal,title,summary,description,tags,thumbnail,organisat
                       'tags':tags,
                       'thumbnail':thumbnail,
                       'access':organisationSharing.lower()}
-        
+
+    item = ""        
     # If the dashboard has not been created
     if (dashboardExists == False):
         # Add the dashboard
@@ -308,12 +339,6 @@ def createDashboard(gisPortal,title,summary,description,tags,thumbnail,organisat
         itemProperties = {'text':jsonData}
         item.update(itemProperties)
         printMessage(title + " dashboard created - " + item.id + "...","info")
-        
-        # If sharing to group(s)
-        if (groupSharing):
-            printMessage("Sharing with the following groups - " + groupSharing + "...","info")
-            groupSharing = groupSharing.split(",")
-            item.share(groups=groupSharing)
     # Dashboard already exists
     else:
         # Get the item ID
@@ -323,7 +348,12 @@ def createDashboard(gisPortal,title,summary,description,tags,thumbnail,organisat
 
         # Update the dashboard
         item.update(itemProperties, thumbnail=thumbnail)
-        printMessage(title + " dashboard updated - " + itemID + "...","info")
+        printMessage(title + " dashboard item properties updated - " + itemID + "...","info")
+
+    # If sharing to group(s)
+    if (groupSharing) and (item):
+        printMessage("Sharing with the following groups - " + groupSharing + "...","info")
+        item.share(groups=groupSharing)        
 # End of create dashboard function
 
 
@@ -342,7 +372,8 @@ def createWebMap(gisPortal,title,summary,description,tags,thumbnail,organisation
                       'tags':tags,
                       'thumbnail':thumbnail,
                       'access':organisationSharing.lower()}
-        
+
+    item = ""        
     # If the web map has not been created
     if (webmapExists == False):
         # Add the web map
@@ -363,12 +394,6 @@ def createWebMap(gisPortal,title,summary,description,tags,thumbnail,organisation
         itemProperties = {'text':jsonData}
         item.update(itemProperties, thumbnail=thumbnail)
         printMessage(title + " web map created - " + item.id + "...","info")
-
-        # If sharing to group(s)
-        if (groupSharing):
-            printMessage("Sharing with the following groups - " + groupSharing + "...","info")
-            groupSharing = groupSharing.split(",")
-            item.share(groups=groupSharing)
     # Web map already exists
     else:
         # Get the item ID
@@ -378,31 +403,316 @@ def createWebMap(gisPortal,title,summary,description,tags,thumbnail,organisation
             
         # Update the web map
         item.update(itemProperties, thumbnail=thumbnail)
-        printMessage(title + " web map updated - " + itemID + "...","info")
+        printMessage(title + " web map item properties updated - " + itemID + "...","info")
+
+    # If sharing to group(s)
+    if (groupSharing) and (item):
+        printMessage("Sharing with the following groups - " + groupSharing + "...","info")
+        item.share(groups=groupSharing)        
 # End of create web map function
 
 
+# Start of create web scene function
+def createWebScene(gisPortal,title,summary,description,tags,thumbnail,organisationSharing,groupSharing,dataFile):
+    printMessage("Creating web scene - " + title + "...","info")
+            
+    # FUNCTION - Search portal to see if web scene is already there
+    webSceneExists = searchPortalForItem(gisPortal,title,"Web Scene")
+
+    # Create the form properties
+    itemProperties = {'title':title,
+                      'type':"Web Scene",
+                      'description':description,
+                      'snippet':summary,
+                      'tags':tags,
+                      'thumbnail':thumbnail,
+                      'access':organisationSharing.lower()}
+
+    item = ""        
+    # If the web scene has not been created
+    if (webSceneExists == False):
+        printMessage("Function currently not supported...","info")  
+    # Form already exists
+    else:
+        # Get the item ID
+        itemID = getIDforPortalItem(gisPortal,title,"web scene")
+        # Get the web scene
+        item = gisPortal.content.get(itemID)
+
+        # Update the web scene
+        item.update(itemProperties, thumbnail=thumbnail)
+        printMessage(title + " web scene item properties updated - " + itemID + "...","info")
+
+    # If sharing to group(s)
+    if (groupSharing) and (item):
+        printMessage("Sharing with the following groups - " + groupSharing + "...","info")
+        item.share(groups=groupSharing)        
+# End of create web scene function
+
+
+# Start of create form function
+def createForm(gisPortal,title,summary,description,tags,thumbnail,organisationSharing,groupSharing,dataFile):
+    printMessage("Creating form - " + title + "...","info")
+            
+    # FUNCTION - Search portal to see if form is already there
+    formExists = searchPortalForItem(gisPortal,title,"Form")
+
+    # Create the form properties
+    itemProperties = {'title':title,
+                      'type':"Form",
+                      'description':description,
+                      'snippet':summary,
+                      'tags':tags,
+                      'thumbnail':thumbnail,
+                      'access':organisationSharing.lower()}
+
+    item = ""        
+    # If the form has not been created
+    if (formExists == False):
+        printMessage("Function currently not supported...","info")  
+    # Form already exists
+    else:
+        # Get the item ID
+        itemID = getIDforPortalItem(gisPortal,title,"form")
+        # Get the form
+        item = gisPortal.content.get(itemID)
+
+        # Update the form
+        item.update(itemProperties, thumbnail=thumbnail)
+        printMessage(title + " form item properties updated - " + itemID + "...","info")
+
+    # If sharing to group(s)
+    if (groupSharing) and (item):
+        printMessage("Sharing with the following groups - " + groupSharing + "...","info")
+        item.share(groups=groupSharing)        
+# End of create form function
+
+
+# Start of create feature service function
+def createFeatureService(gisPortal,title,summary,description,tags,thumbnail,organisationSharing,groupSharing,dataFile):
+    printMessage("Creating feature service - " + title + "...","info")
+            
+    # FUNCTION - Search portal to see if feature service is already there
+    featureServiceExists = searchPortalForItem(gisPortal,title,"Feature Service")
+
+    # Create the feature service properties
+    itemProperties = {'title':title,
+                      'type':"Feature Service",
+                      'description':description,
+                      'snippet':summary,
+                      'tags':tags,
+                      'thumbnail':thumbnail,
+                      'access':organisationSharing.lower()}
+
+    item = ""        
+    # If the feature service has not been created
+    if (featureServiceExists == False):
+        # Get the FGDB data from the file if provided
+        if (dataFile):
+            # If the file exists
+            if (os.path.exists(dataFile)):
+                # FUNCTION - Search portal to see if file geodatabase is already there
+                fgdbExists = searchPortalForItem(gisPortal,os.path.basename(dataFile),"File Geodatabase")
+
+                printMessage("Loading data from zip file (FGDB) - " + dataFile,"info")
+                # If the file geodatabase has not been created
+                if (fgdbExists == False):
+                    # Upload file
+                    fgdbItem = gisPortal.content.add({"title":title,"type":"File Geodatabase"},dataFile)
+                    printMessage("FGDB uploaded - " + fgdbItem.id + "...", "info")
+                # File geodatabase already exists
+                else:
+                    # Get the item ID
+                    fgdbItemID = getIDforPortalItem(gisPortal,os.path.basename(dataFile),"File Geodatabase")
+                    # Get the file geodatabase
+                    fgdbItem = gisPortal.content.get(fgdbItemID)
+                    # Upload file
+                    updateResult = fgdbItem.update({"title":title,"type":"File Geodatabase"},dataFile)
+                    if "error" in str(updateResult):
+                        printMessage(updateResult,"error")
+                    printMessage("FGDB updated - " + fgdbItem.id + "...", "info")
+
+                # Publish the feature service
+                item = fgdbItem.publish()
+
+                item.update(itemProperties)
+                printMessage(title + " feature service created - " + item.id + "...","info")
+            else:
+                printMessage(title + " FGDB data (.zip) does not exist - " + dataFile + "...","warning")
+        # Data not provided
+        else:
+            printMessage(title + " FGDB data (.zip) has not been provided...","warning")            
+    # Feature service already exists
+    else:
+        # Get the item ID
+        itemID = getIDforPortalItem(gisPortal,title,"feature service")
+        # Get the feature service
+        item = gisPortal.content.get(itemID)
+
+        # Get the FGDB data from the file if provided
+        if (dataFile):
+            # If the file exists
+            if (os.path.exists(dataFile)):
+                # If there are layers in the item
+                if (item.layers):            
+                    # Get the feature layer to be updated - Assuming just one feature layer in service
+                    featureLayers = item.layers
+                    featureLayerUpdate = ""
+                    for featureLayer in featureLayers:
+                        featureLayerUpdate = featureLayer
+
+                    # FUNCTION - Search portal to see if file geodatabase is already there
+                    fgdbExists = searchPortalForItem(gisPortal,os.path.basename(dataFile),"File Geodatabase")
+
+                    printMessage("Loading data from zip file (FGDB) - " + dataFile,"info")
+                    # If the file geodatabase has not been created
+                    if (fgdbExists == False):
+                        fgdbItem = gisPortal.content.add({"title":title,"type":"File Geodatabase"},dataFile)
+                        printMessage("FGDB uploaded - " + fgdbItem.id + "...", "info")
+                    # File geodatabase already exists
+                    else:
+                        # Get the item ID
+                        fgdbItemID = getIDforPortalItem(gisPortal,os.path.basename(dataFile),"File Geodatabase")
+                        # Get the file geodatabase
+                        fgdbItem = gisPortal.content.get(fgdbItemID)
+                        # Upload file
+                        updateResult = fgdbItem.update({"title":title,"type":"File Geodatabase"},dataFile)
+                        if "error" in str(updateResult):
+                            printMessage(updateResult,"error")
+                        printMessage("FGDB updated - " + fgdbItem.id + "...", "info")
+
+                    # Three publishing options
+                    # - Append will truncate and append all records
+                    # - Overwrite will republish and overwrite the existing service as append only works in ArcGIS Online
+                    # - Republish will delete and recreate the service as overwrite was not working in portal when I was testing
+                    updateMode = "Append" # "Republish", "Overwrite" or "Append"
+                    if (updateMode.lower() == "republish"):
+                        if (fgdbExists == True):
+                            printMessage("Deleting feature service...", "info")
+                            item.delete()
+                            printMessage("Republishing feature service...", "info") 
+                            # Publish the feature service
+                            item = fgdbItem.publish(overwrite=False)
+                            
+                            printMessage(title + " feature service recreated - " + item.id + "...","info")
+                        else:
+                            printMessage(title + " - The FGDB for this feature service does not exist in portal...","error")
+                    # Overwriting data
+                    elif (updateMode.lower() == "overwrite"):
+                        if (fgdbExists == True):
+                            printMessage("Overwriting feature service...", "info") 
+                            # Publish the feature service
+                            item = fgdbItem.publish(overwrite=True)
+                        else:
+                            printMessage(title + " - The FGDB for this feature service does not exist in portal...","error")
+                    # Reloading data
+                    else:        
+                        # Delete all features
+                        printMessage("Deleting all data from feature layer...", "info")    
+                        deleteResult = featureLayerUpdate.delete_features(where="objectid > 0")
+                        if "error" in str(deleteResult):
+                            printMessage(deleteResult,"error")
+                        # Add all the features                            
+                        printMessage("Loading data into feature layer...", "info")
+                        
+                        addResult = featureLayerUpdate.append(item_id=fgdbItem.id,
+                                                  upload_format="filegdb",
+                                                  upsert=False,
+                                                  skip_updates=False,
+                                                  use_globalids=False,
+                                                  update_geometry=True,
+                                                  rollback=False,
+                                                  skip_inserts=False)
+                        if "error" in str(addResult):
+                            printMessage(addResult,"error")
+
+                    # Get the new features
+                    featureSet = featureLayerUpdate.query()
+                    features = featureSet.features
+                    printMessage("Record count - " + str(len(features)),"info")    
+                else:
+                    printMessage(title + " - There is an issue with the feature service...","error")
+            else:
+                printMessage(title + " FGDB data (.zip) does not exist - " + dataFile + "...","warning")
+
+        # Update the feature service
+        item.update(itemProperties, thumbnail=thumbnail)
+        printMessage(title + " feature service item properties updated - " + itemID + "...","info")
+
+    # If sharing to group(s)
+    if (groupSharing) and (item):
+        printMessage("Sharing with the following groups - " + groupSharing + "...","info")
+        item.share(groups=groupSharing)        
+# End of create feature service function
+
+
+# Start of create feature service view function
+def createFeatureServiceView(gisPortal,title,summary,description,tags,thumbnail,organisationSharing,groupSharing,dataFile):
+    printMessage("Creating feature service view - " + title + "...","info")
+            
+    # FUNCTION - Search portal to see if feature service view is already there
+    featureServiceViewExists = searchPortalForItem(gisPortal,title,"Feature Service")
+
+    # Create the feature service view properties
+    itemProperties = {'title':title,
+                      'type':"Feature Service",
+                      'description':description,
+                      'snippet':summary,
+                      'tags':tags,
+                      'thumbnail':thumbnail,
+                      'access':organisationSharing.lower()}
+
+    item = ""
+    # If the feature service view has not been created
+    if (featureServiceViewExists == False):
+        printMessage("Function currently not supported...","info")  
+    # Feature service view already exists
+    else:
+        # Get the item ID
+        itemID = getIDforPortalItem(gisPortal,title,"feature service")
+        # Get the feature service view
+        item = gisPortal.content.get(itemID)
+
+        # Update the feature service view
+        item.update(itemProperties, thumbnail=thumbnail)
+        printMessage(title + " feature service view item properties updated - " + itemID + "...","info")
+
+    # If sharing to group(s)
+    if (groupSharing) and (item):
+        printMessage("Sharing with the following groups - " + groupSharing + "...","info")
+        item.share(groups=groupSharing)        
+# End of create feature service view function
+
+    
 # Start of get ID for portal item function
 def getIDforPortalItem(gisPortal,title,itemType):
     itemID = ""
     # If a group
     if (itemType.lower() == "group"):
         # Search portal to find item
-        searchItems = gisPortal.groups.search(query="title:" + title, sort_field='title', sort_order='asc')  
+        searchItems = gisPortal.groups.search(query="title:" + title, sort_field='title', sort_order='asc', max_groups=1000)
+    # If a file geodatabase
+    elif (itemType.lower() == "file geodatabase"):     
+        # Search portal to find item
+        searchItems = gisPortal.content.search(query=title, item_type=itemType, sort_field='title', sort_order='asc', max_items=1000) 
     else:        
         # Search portal to find item
-        searchItems = gisPortal.content.search(query="title:" + title, item_type=itemType, sort_field='title', sort_order='asc')
+        searchItems = gisPortal.content.search(query="title:" + title, item_type=itemType, sort_field='title', sort_order='asc', max_items=1000)
         
     for searchItem in searchItems:
-        # If search result matches
-        if (searchItem.title.lower().replace(" ", "") == title.lower().replace(" ", "")):
-            # If a group
-            if (itemType.lower() == "group"):
-                itemID = searchItem.id
-            else:
-                # If item type matches
-                if (searchItem.type.lower().replace(" ", "") == itemType.lower().replace(" ", "")):
+        # If file geodatabase item
+        if (itemType.lower() == "file geodatabase"):
+            itemID = searchItem.id
+        else:        
+            # If search result matches
+            if (searchItem.title.lower().replace(" ", "") == title.lower().replace(" ", "")):
+                # If a group
+                if (itemType.lower() == "group"):
                     itemID = searchItem.id
+                else:
+                    # If item type matches
+                    if (searchItem.type.lower().replace(" ", "") == itemType.lower().replace(" ", "")):
+                        itemID = searchItem.id
 
     # Return item ID
     return itemID
@@ -415,16 +725,25 @@ def searchPortalForItem(gisPortal,title,itemType):
     # If a group
     if (itemType.lower() == "group"):
         # Search portal to see if group is already there
-        searchItems = gisPortal.groups.search(query="title:" + title, sort_field='title', sort_order='asc')        
+        searchItems = gisPortal.groups.search(query="title:" + title, sort_field='title', sort_order='asc', max_groups=1000)        
+    # If a file geodatabase
+    elif (itemType.lower() == "file geodatabase"):     
+        # Search portal to find item
+        searchItems = gisPortal.content.search(query=title, item_type=itemType, sort_field='title', sort_order='asc', max_items=1000)
     else:
         # Search portal to see if item is already there
-        searchItems = gisPortal.content.search(query="title:" + title, item_type=itemType, sort_field='title', sort_order='asc')        
+        searchItems = gisPortal.content.search(query="title:" + title, item_type=itemType, sort_field='title', sort_order='asc', max_items=1000)        
 
-    for searchItem in searchItems:
-        # If search result matches
-        if (searchItem.title.lower().replace(" ", "") == title.lower().replace(" ", "")):
+    for searchItem in searchItems: 
+        # If file geodatabase item
+        if (itemType.lower() == "file geodatabase"):
             printMessage(title + " already exists - " + searchItem.id + "...","info")
             itemExists = True
+        else:
+            # If search result matches
+            if (searchItem.title.lower().replace(" ", "") == title.lower().replace(" ", "")):
+                printMessage(title + " already exists - " + searchItem.id + "...","info")
+                itemExists = True
 
     # Return item exists boolean
     return itemExists

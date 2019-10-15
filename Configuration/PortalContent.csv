@@ -1,4 +1,5 @@
 Title,Type,Summary,Description,Tags,Thumbnail,Organisation Sharing,Group Sharing,Members,Data
-Test Map,Web Map,Map used to design assets in the Powerco gas network.,Map used to design assets in the Powerco gas network.,"Web Map, Gas Design Edit, SAP Integration",C:\Google Drive\Work\Pictures\ArcGIS Online Thumbnails\Layers.png,Private,,,C:\Temp\Data\WebMapTemplate.json
+Test Map,Web Map,Summary goes here…,Description goes here…,Web Map,,Private,,,C:\Temp\Data\WebMapTemplate.json
 Test Application,Web Mapping Application,Summary goes here…,Description goes here…,WAB,,,,,
 Test Dashboard,Dashboard,Summary goes here…,Description goes here…,Dashboard,,,,,
+Test Service,Feature Service,Summary goes here…,Description goes here…,"Test Service, Feature Service",,,,,C:\Temp\FGDB\MastertonMeshblocks.zip
