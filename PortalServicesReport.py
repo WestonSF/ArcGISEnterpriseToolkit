@@ -1,13 +1,13 @@
 #-------------------------------------------------------------
 # Name:       Portal Services Report
 # Purpose:    Queries an ArcGIS Online/Portal for ArcGIS site to find all services that are being used in web maps
-#             then aggregates these in a CSV file. This tool needs to be run as an ArcGIS Online/Portal administrator.
+#             then aggregates these into a CSV file.
 # Author:     Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:    05/04/2016
-# Last Updated:    11/04/2017
+# Last Updated:    07/11/2019
 # Copyright:   (c) Eagle Technology
-# ArcGIS Version:   ArcMap 10.4+
-# Python Version:   2.7
+# ArcGIS Version:       ArcGIS API for Python 1.4.2+ or ArcGIS Pro (ArcPy) 2.1+
+# Python Version:       3.6.5+ (Anaconda Distribution)
 #--------------------------------
 
 # Import main modules
@@ -15,463 +15,205 @@ import os
 import sys
 import logging
 import smtplib
+import time
+import shutil
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+import email.mime.application
+import urllib.request
+# Import ArcGIS modules
+useArcPy = "false"
+useArcGISAPIPython = "true"
+if (useArcPy == "true"):
+    # Import arcpy module
+    import arcpy
+    # Enable data to be overwritten
+    arcpy.env.overwriteOutput = True
+if (useArcGISAPIPython == "true"):
+    # Import arcgis module
+    import arcgis
+import datetime
+import csv
+import collections
 
 # Set global variables
 # Logging
-enableLogging = "false" # Use within code - logger.info("Example..."), logger.warning("Example..."), logger.error("Example...") and to print messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
-logFile = "" # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
-# Email logging
+enableLogging = "true" # Use within code to print and log messages - printMessage("xxx","info"), printMessage("xxx","warning"), printMessage("xxx","error")
+logFile = os.path.join(os.path.dirname(__file__), "PortalServicesReport.log") # e.g. os.path.join(os.path.dirname(__file__), "Example.log")
+enableLogTable = "false" # Use to log the completion of the process to a geodatabase table
+logTable = "" # e.g. "C:\Temp\Scratch.gdb\Logging"
+archiveLogFiles = "true"
+# Email Use within code to send email - sendEmail(subject,message,attachment)
 sendErrorEmail = "false"
+emailSubject = "" # Subject in email
 emailServerName = "" # e.g. smtp.gmail.com
-emailServerPort = 0 # e.g. 25
-emailTo = ""
-emailUser = ""
+emailServerPort = None # e.g. 25
+emailTo = [] # Address of email sent to e.g. ["name1@example.com", "name2@example.com"]
+emailUser = "" # Address of email sent from e.g. "name1@example.com"
 emailPassword = ""
-emailSubject = ""
-emailMessage = ""
 # Proxy
 enableProxy = "false"
 requestProtocol = "http" # http or https
 proxyURL = ""
 # Output
 output = None
-# ArcGIS desktop installed
-arcgisDesktop = "true"
 
-# If ArcGIS desktop installed
-if (arcgisDesktop == "true"):
-    # Import extra modules
-    import arcpy
-    # Enable data to be overwritten
-    arcpy.env.overwriteOutput = True
-# Python version check
-if sys.version_info[0] >= 3:
-    # Python 3.x
-    import urllib.request as urllib2
-else:
-    # Python 2.x
-    import urllib2  
-import urllib
-import json
-import csv
-import ssl
-
+# Parameters
+portalURL = "https://organisation.co.nz/portal"
+portalUser = "portaladmin"
+portalPassword = "*****"
+webmapsCSV = "WebMaps.csv"
+servicesCSV = "Services.csv"
 
 # Start of main function
-def mainFunction(portalUrl,portalAdminName,portalAdminPassword,csvFile,csvFile2): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
+def mainFunction(): # Get parameters from ArcGIS Desktop tool by seperating by comma e.g. (var1 is 1st parameter,var2 is 2nd parameter,var3 is 3rd parameter)  
     try:
         # --------------------------------------- Start of code --------------------------------------- #
+        # Connect to GIS portal
+        printMessage("Connecting to GIS Portal - " + portalURL + "...","info")
+        gisPortal = arcgis.GIS(url=portalURL, username=portalUser, password=portalPassword, verify_cert=False)
+
+        # Query all web maps in the portal
+        printMessage("Querying the web maps in portal...","info")
+        items = gisPortal.content.search(query="",item_type="Web Map",max_items=10000)
+        printMessage("There are " + str(len(items)) + " web maps in the portal...","info")
+
+        # Open the web maps CSV file and create writer
+        csvWebmapsFileWrite = open(webmapsCSV, 'w', newline='')
+        fieldNames = ["Title","ID","Web URL"]
+        csvWebmapsWriter = csv.DictWriter(csvWebmapsFileWrite,fieldNames)
+        csvWebmapsWriter.writeheader()
+        # Open the services CSV file and create writer
+        csvServicesFileWrite = open(servicesCSV, 'w', newline='')
+        fieldNames = ["Web URL","Count"]
+        csvServicesWriter = csv.DictWriter(csvServicesFileWrite,fieldNames)
+        csvServicesWriter.writeheader()
+
+        # For each item
+        webmapList = []
+        servicesList = []
+        serviceCountsList = []        
+        for item in items:
+            # Get the web map object
+            webmap = arcgis.mapping.WebMap(item)
+            for basemapLayer in webmap.basemap["baseMapLayers"]:
+                # If layer has a URL reference
+                if "url" in basemapLayer:
+                    # Add to web map list
+                    webmapDict = {}
+                    webmapDict["Title"] = item.title
+                    webmapDict["ID"] = item.id
+                    webmapDict["Web URL"] = basemapLayer["url"]
+                    webmapList.append(webmapDict)
+                    # Add to service list
+                    servicesList.append(basemapLayer["url"])
+            for layer in webmap.layers:
+                # If layer has a URL reference
+                if "url" in layer:
+                    # Add to web map list
+                    webmapDict = {}
+                    webmapDict["Title"] = item.title
+                    webmapDict["ID"] = item.id
+                    webmapDict["Web URL"] = layer.url
+                    webmapList.append(webmapDict)
+                    # Add to service list
+                    servicesList.append(layer.url)
+
+        printMessage("Writing web map and service information to CSV...","info")
+
+        # Get a count of the number of times services are used in web maps
+        serviceCounts = collections.Counter(servicesList).most_common()
+        for key,value in serviceCounts:
+            # Add to services count list
+            serviceCountDict = {}
+            serviceCountDict["Web URL"] = key
+            serviceCountDict["Count"] = value
+            serviceCountsList.append(serviceCountDict)
         
-        printMessage("Connecting to Portal - " + portalUrl + "...","info")
-        # Generate token for portal
-        token = generateToken(portalAdminName, portalAdminPassword, portalUrl)
-
-        printMessage("Getting organisation ID for portal site...","info")
-        # Setup parameters for organisation query
-        dict = {}
-        dict['f'] = 'json'
-        dict['token'] = token
-        # Python version check
-        if sys.version_info[0] >= 3:
-            # Python 3.x
-            # Encode parameters
-            params = urllib.parse.urlencode(dict)
-        else:
-            # Python 2.x
-            # Encode parameters
-            params = urllib.urlencode(dict)
-        params = params.encode('utf-8')
-                 
-        # POST the request - organisation query
-        context = ssl._create_unverified_context()
-        requestURL = urllib2.Request(portalUrl + "/sharing/rest/portals/self",params)
-        response = urllib2.urlopen(requestURL, context=context)
-        # Python version check
-        if sys.version_info[0] >= 3:
-            # Python 3.x
-            # Read json response
-            responseJSON = json.loads(response.read().decode('utf8'))
-        else:
-            # Python 2.x
-            # Read json response
-            responseJSON = json.loads(response.read())
-
-        # Log results
-        if "error" in responseJSON:
-            errDict = responseJSON['error']
-            message =  "Error Code: %s \n Message: %s" % (errDict['code'],
-            errDict['message'])
-            printMessage(message,"error")
-        else:
-            # Get the organisation ID
-            orgID = responseJSON["id"]
-
-            # Setup the query
-            query = "type:\"web map\" AND -type:\"web mapping application\" AND orgid:\"" + orgID + "\""
-            startQueryNum = 0
-            
-            # Setup the dictionary to store the web maps
-            webmaps = []
+        # Write the lists to the CSV files
+        csvWebmapsWriter.writerows(webmapList)
+        csvServicesWriter.writerows(serviceCountsList)
         
-            # Search content on the site
-            printMessage("Searching web maps on portal site...","info")
-            # Return all the web maps - 100 at a time
-            while (startQueryNum != -1):
-                totalWebmaps,nextStartID,webMapsReturned = searchWebmaps(portalUrl,token,query,startQueryNum)
-                startQueryNum = nextStartID
-                webmaps = webmaps + webMapsReturned
-                if (startQueryNum != -1):
-                    printMessage("Queried " + str(nextStartID-1) + " of " + str(totalWebmaps) + " web maps...","info")
-                else:
-                    printMessage("Queried " + str(totalWebmaps) + " of " + str(totalWebmaps) + " web maps...","info")                    
-
-            # Setup the dictionary to store the services
-            services = []
-            
-            # For each of the web maps returned
-            count = 0
-            for webmap in webmaps:
-                printMessage("Querying web map - " + webmap["id"] + "...","info")
-                servicesReturned = servicesWebmap(portalUrl,token,webmap["id"])
-                services = services + servicesReturned
-                count = count + 1
-                printMessage("Number of services in web map - " + str(len(servicesReturned)),"info")
-                printMessage("Queried " + str(count) + " of " + str(totalWebmaps) + " web maps...","info")
-
-            printMessage("Creating full services list CSV file - " + csvFile + "...","info")
-            # Create a CSV file and setup header
-            file = open(csvFile, 'wb')
-            writer = csv.writer(file, delimiter=",")
-
-            # Add in header information   
-            headerRow = []                               
-            headerRow.append("Service")
-            headerRow.append("Title")
-            headerRow.append("Web Map URL")
-            writer.writerow(headerRow)
-
-            # Add in rows
-            for service in services:
-                row = []                               
-                row.append(service["url"])
-                row.append(service["title"])
-                row.append(portalUrl + "/home/item.html?id=" + service["webmap"])
-                writer.writerow(row)                
-
-            printMessage("Creating grouped services list CSV file - " + csvFile2 + "...","info")
-            servicesGrouped = {}
-            # Reference CSV file
-            file = open(csvFile, 'rb')
-            csvreader = csv.reader(file, delimiter=',')
-            # For each row in the file
-            count = 0
-            for row in csvreader:
-                key = row[0]
-                # If not the first row
-                if (count > 0):
-                    # If service already added, increment by 1
-                    if key in servicesGrouped:
-                        servicesGrouped[key] = servicesGrouped[key] + 1
-                    # If service is not added, add it
-                    else:
-                        servicesGrouped[key] = 1
-                count = count + 1
-                
-            # Create a CSV file and setup header
-            file = open(csvFile2, 'wb')
-            writer = csv.writer(file, delimiter=",")
-
-            # Add in header information   
-            headerRow = []                               
-            headerRow.append("Service")
-            headerRow.append("Count")
-            writer.writerow(headerRow)
-
-            # Sort the services by the grouping count            
-            sortedServicesGrouped = sorted(servicesGrouped, key=servicesGrouped.__getitem__, reverse=True)
-
-            # Add in rows
-            for sortedServiceGrouped in sortedServicesGrouped:
-                row = []                               
-                row.append(sortedServiceGrouped)
-                row.append(servicesGrouped[sortedServiceGrouped])
-                writer.writerow(row)
-            
+        # Close the CSV files
+        csvWebmapsFileWrite.close()
+        csvServicesFileWrite.close()        
         # --------------------------------------- End of code --------------------------------------- #
-        # If called from gp tool return the arcpy parameter   
+        # If called from ArcGIS GP tool
         if __name__ == '__main__':
             # Return the output if there is any
             if output:
-                # If ArcGIS desktop installed
-                if (arcgisDesktop == "true"):
-                    arcpy.SetParameterAsText(1, output)
+                # If using ArcPy
+                if (useArcPy == "true"):
+                    arcpy.SetParameter(1, output)
                 # ArcGIS desktop not installed
                 else:
-                    return output 
-        # Otherwise return the result          
+                    return output
+        # Otherwise return the result
         else:
             # Return the output if there is any
             if output:
-                return output      
-        # Logging
-        if (enableLogging == "true"):
-            # Log end of process
-            logger.info("Process ended.")
-            # Remove file handler and close log file        
-            logMessage.flush()
-            logMessage.close()
-            logger.handlers = []
-    # If arcpy error
-    except arcpy.ExecuteError:           
-        # Build and show the error message
-        errorMessage = arcpy.GetMessages(2)   
-        printMessage(errorMessage,"error")           
-        # Logging
-        if (enableLogging == "true"):
-            # Log error          
-            logger.error(errorMessage)
-            # Log end of process
-            logger.info("Process ended.")            
-            # Remove file handler and close log file        
-            logMessage.flush()
-            logMessage.close()
-            logger.handlers = []   
-        if (sendErrorEmail == "true"):
-            # Send email
-            sendEmail(errorMessage)
-    # If python error
+                return output
+        printMessage("Process ended...","info")
+        if (enableLogTable == "true"):
+            # Log end message to table
+            currentDate = datetime.datetime.utcnow().strftime("%d/%m/%Y %H:%M:%S")
+            logToTable({"Date": currentDate,"Process": os.path.basename(__file__).replace(".py",""),"Status": "Success","Organisation": None,"DataName": None,"Message": "Process ended...","RecordCount":None})        
+    # If error
     except Exception as e:
-        errorMessage = ""         
+        errorMessage = ""
         # Build and show the error message
         # If many arguments
         if (e.args):
-            for i in range(len(e.args)):        
+            for i in range(len(e.args)):
                 if (i == 0):
-                    # Python version check
-                    if sys.version_info[0] >= 3:
-                        # Python 3.x
-                        errorMessage = str(e.args[i]).encode('utf-8').decode('utf-8')
-                    else:
-                        # Python 2.x
-                        errorMessage = unicode(e.args[i]).encode('utf-8')
+                    errorMessage = str(e.args[i]).encode('utf-8').decode('utf-8')
                 else:
-                    # Python version check
-                    if sys.version_info[0] >= 3:
-                        # Python 3.x
-                        errorMessage = errorMessage + " " + str(e.args[i]).encode('utf-8').decode('utf-8')
-                    else:
-                        # Python 2.x
-                        errorMessage = errorMessage + " " + unicode(e.args[i]).encode('utf-8')
+                    errorMessage = errorMessage + " " + str(e.args[i]).encode('utf-8').decode('utf-8')
         # Else just one argument
         else:
             errorMessage = e
         printMessage(errorMessage,"error")
-        # Logging
-        if (enableLogging == "true"):
-            # Log error            
-            logger.error(errorMessage)
-            # Log end of process
-            logger.info("Process ended.")            
-            # Remove file handler and close log file        
-            logMessage.flush()
-            logMessage.close()
-            logger.handlers = []   
+        printMessage("Process ended...","info")
         if (sendErrorEmail == "true"):
             # Send email
-            sendEmail(errorMessage)            
+            sendEmail(errorMessage,None)
+        if (enableLogTable == "true"):
+            # Log end message to table
+            currentDate = datetime.datetime.utcnow().strftime("%d/%m/%Y %H:%M:%S")
+            logToTable({"Date": currentDate,"Process": os.path.basename(__file__).replace(".py",""),"Status": "Fail","Organisation": None,"DataName": None,"Message": errorMessage,"RecordCount":None})            
 # End of main function
 
 
-# Start of search web maps function
-def searchWebmaps(portalUrl,token,query,startQueryNum):
-    # Setup parameters for search query 
-    dict = {}
-    dict['f'] = 'json'
-    dict['token'] = token
-    dict['num'] = "100"
-    dict['sortField'] = "title"
-    dict['sortOrder'] = "asc"
-    #dict['restrict'] = "true"
-    dict['focus'] = "maps"    
-    dict['q'] = query
-    dict['start'] = startQueryNum
-    # Python version check
-    if sys.version_info[0] >= 3:
-        # Python 3.x
-        # Encode parameters
-        params = urllib.parse.urlencode(dict)
-    else:
-        # Python 2.x
-        # Encode parameters
-        params = urllib.urlencode(dict)
-    params = params.encode('utf-8')
-
-    # POST the request - Creates a new item in the ArcGIS online site
-    requestURL = urllib2.Request(portalUrl + "/sharing/rest/search",params)
-    context = ssl._create_unverified_context()
-    response = urllib2.urlopen(requestURL, context=context)
-    # Python version check
-    if sys.version_info[0] >= 3:
-        # Python 3.x
-        # Read json response
-        responseJSON = json.loads(response.read().decode('utf8'))
-    else:
-        # Python 2.x
-        # Read json response
-        responseJSON = json.loads(response.read())
-
-    # Log results
-    if "error" in responseJSON:
-        errDict = responseJSON['error']
-        message =  "Error Code: %s \n Message: %s" % (errDict['code'],
-        errDict['message'])
-        printMessage(message,"error")
-    else:
-        # Setup the dictionary to return
-        webmaps = []
-        # Get the total web maps found
-        totalWebmaps = responseJSON["total"]        
-        # Get the ID to start from for the next search
-        nextStartID = responseJSON["nextStart"]
-        # For each of the results returned
-        for result in responseJSON["results"]:
-            # Append data into dictionary
-            webmaps.append({"id":result["id"],"title":result["title"],"owner":result["owner"],"access":result["access"]})
-
-        # Return dictionary
-        return totalWebmaps,nextStartID,webmaps
-# End of search web maps function
-
-
-# Start of services in web map function
-def servicesWebmap(portalUrl,token,webmap):
-    # Setup parameters for web map query
-    dict = {}
-    dict['f'] = 'json'
-    dict['token'] = token
-    # Python version check
-    if sys.version_info[0] >= 3:
-        # Python 3.x
-        # Encode parameters
-        params = urllib.parse.urlencode(dict)
-    else:
-        # Python 2.x
-        # Encode parameters
-        params = urllib.urlencode(dict)
-    params = params.encode('utf-8')
-
-    # POST the request - web map query
-    requestURL = urllib2.Request(portalUrl + "/sharing/rest/content/items/" + webmap + "/data",params)
-    context = ssl._create_unverified_context()
-    response = urllib2.urlopen(requestURL, context=context)
-    # Python version check
-    if sys.version_info[0] >= 3:
-        # Python 3.x
-        # Read json response
-        responseJSON = json.loads(response.read().decode('utf8'))
-    else:
-        # Python 2.x
-        # Read json response
-        responseJSON = json.loads(response.read())
-
-    # Log results
-    if "error" in responseJSON:
-        errDict = responseJSON['error']
-        message =  "Error Code: %s \n Message: %s" % (errDict['code'],
-        errDict['message'])
-        printMessage(message,"error")
-    else:
-        # Setup the dictionary to return
-        services = []
-        
-        # For each of the operational layers returned
-        for operationalLayer in responseJSON["operationalLayers"]:
-            # If URL to service
-            if ("url" in operationalLayer):
-                # Append data into dictionary
-                services.append({"url":operationalLayer["url"],"title":operationalLayer["title"],"webmap":webmap})
-
-        # For each of the basemap layers returned
-        for basemap in responseJSON["baseMap"]["baseMapLayers"]:
-            # If URL to service
-            if ("url" in basemap):       
-                # If URL to service
-                services.append({"url":basemap["url"],"title":"Basemap","webmap":webmap})
-
-        # Return dictionary
-        return services     
-# End of services in web map function
-
-
-# Start of get token function
-def generateToken(username, password, portalUrl):
-    # Python version check
-    if sys.version_info[0] >= 3:
-        # Python 3.x
-        # Encode parameters
-        parameters = urllib.parse.urlencode({'username' : username,
-                        'password' : password,
-                        'client' : 'referer',
-                        'referer': portalUrl,
-                        'expiration': 60,
-                        'f' : 'json'})
-    else:
-        # Python 2.x
-        # Encode parameters
-        parameters = urllib.urlencode({'username' : username,
-                        'password' : password,
-                        'client' : 'referer',
-                        'referer': portalUrl,
-                        'expiration': 60,
-                        'f' : 'json'})
-    parameters = parameters.encode('utf-8')
-    try:
-        requestURL = urllib2.Request(portalUrl + '/sharing/rest/generateToken?',parameters)
-        context = ssl._create_unverified_context()
-        response = urllib2.urlopen(requestURL, context=context)
-    except Exception as e:
-        printMessage( 'Unable to open the url %s/sharing/rest/generateToken' % (portalUrl),'error')
-        printMessage(e,'error')
-
-    # Python version check
-    if sys.version_info[0] >= 3:
-        # Python 3.x
-        # Read json response
-        responseJSON = json.loads(response.read().decode('utf8'))
-    else:
-        # Python 2.x
-        # Read json response
-        responseJSON = json.loads(response.read())
-
-    # Log results
-    if "error" in responseJSON:
-        errDict = responseJSON['error']
-        if int(errDict['code'])==498:
-            message = 'Token Expired. Getting new token... '
-            token = generateToken(username,password, portalUrl)
-        else:
-            message =  'Error Code: %s \n Message: %s' % (errDict['code'],
-            errDict['message'])
-            printMessage(message,'error')
-    token = responseJSON.get('token')
-    return token
-# End of get token function
-
-
-# Start of print message function
+# Start of print and logging message function
 def printMessage(message,type):
-    # If ArcGIS desktop installed
-    if (arcgisDesktop == "true"):
-        if (type.lower() == "warning"):
+    if (type.lower() == "warning"):
+        # If using ArcPy
+        if (useArcPy == "true"):
             arcpy.AddWarning(message)
-        elif (type.lower() == "error"):
+        else:
+            print(message)
+        # Logging
+        if (enableLogging == "true"):
+            logger.warning(message)     
+    elif (type.lower() == "error"):
+        # If using ArcPy
+        if (useArcPy == "true"):
             arcpy.AddError(message)
         else:
-            arcpy.AddMessage(message)
-    # ArcGIS desktop not installed
+            print(message)
+        # Logging
+        if (enableLogging == "true"):
+            logger.error(message)   
     else:
-        print(message)
-# End of print message function
+        # If using ArcPy
+        if (useArcPy == "true"):            
+            arcpy.AddMessage(message)
+        else:
+            print(message)
+        # Logging
+        if (enableLogging == "true"):
+            logger.info(message)                
+# End of print and logging message function
 
 
 # Start of set logging function
@@ -486,60 +228,157 @@ def setLogging(logFile):
     # Add formatter to log message handler
     logMessage.setFormatter(logFormat)
     # Add log message handler to logger
-    logger.addHandler(logMessage) 
+    logger.addHandler(logMessage)
 
-    return logger, logMessage               
+    return logger, logMessage
 # End of set logging function
 
 
+# Start of log to table function
+def logToTable(logData):
+    try:
+        # If using ArcPy
+        if (useArcPy == "true"):
+            # If table exists
+            if arcpy.Exists(logTable):
+                requiredFieldNames = ["Date","Process","Status","Organisation","DataName","Message","RecordCount"]
+                fieldNames = [f.name.lower() for f in arcpy.ListFields(logTable)]
+                requiredFieldsNotPresentCount = 0
+                for requiredFieldName in requiredFieldNames:
+                    if requiredFieldName.lower() not in fieldNames:
+                        printMessage(requiredFieldName + " is required in the log table...","error") 
+                        requiredFieldsNotPresentCount  += 1
+                if (requiredFieldsNotPresentCount == 0):
+                    # Check whether all the dictionary values have been provided
+                    value1 = None
+                    if "Date" in logData:
+                        value1 = logData["Date"]
+                    value2 = None
+                    if "Process" in logData:
+                        # If not blank
+                        if (logData["Process"]):
+                            value2 = logData["Process"][:200] # Strip to be below 200 characters
+                    value3 = None
+                    if "Status" in logData:
+                        # If not blank
+                        if (logData["Status"]):
+                            value3 = logData["Status"][:50] # Strip to be below 50 characters
+                    value4 = None
+                    if "Organisation" in logData:
+                        # If not blank
+                        if (logData["Organisation"]):
+                            value4 = logData["Organisation"][:50] # Strip to be below 50 characters
+                    value5 = None        
+                    if "DataName" in logData:
+                        # If not blank
+                        if (logData["DataName"]):
+                            value5 = logData["DataName"][:50] # Strip to be below 50 characters
+                    value6 = None
+                    if "Message" in logData:
+                        # If not blank
+                        if (logData["Message"]):
+                            value6 = logData["Message"][:1000] # Strip to be below 1000 characters
+                    value7 = None 
+                    if "RecordCount" in logData:
+                        # If not blank
+                        if (str(logData["RecordCount"])):
+                            # If a number
+                            if (str(logData["RecordCount"]).isdigit()):
+                                value7 = logData["RecordCount"]
+                        
+                    # Write to table
+                    cursor = arcpy.da.InsertCursor(logTable, requiredFieldNames)
+                    cursor.insertRow([value1,value2,value3,value4,value5,value6,value7])
+                    del cursor
+            else:
+                printMessage("Log table does not exist - " + logTable + "...","error")
+        else:
+            printMessage("This message will not be logged to table. Table logging is only supported with ArcPy...","warning")        
+    # If error
+    except Exception as e:
+        errorMessage = ""
+        # Build and show the error message
+        # If many arguments
+        if (e.args):
+            for i in range(len(e.args)):
+                if (i == 0):
+                    errorMessage = str(e.args[i]).encode('utf-8').decode('utf-8')
+                else:
+                    errorMessage = errorMessage + " " + str(e.args[i]).encode('utf-8').decode('utf-8')
+        # Else just one argument
+        else:
+            errorMessage = str(e)
+        printMessage("Log to table error...","error") 
+        printMessage(errorMessage,"error")        
+# End of log to table function
+
+
 # Start of send email function
-def sendEmail(message):
+def sendEmail(message,attachment):
     # Send an email
     printMessage("Sending email...","info")
     # Server and port information
-    smtpServer = smtplib.SMTP(emailServerName,emailServerPort) 
+    smtpServer = smtplib.SMTP(emailServerName,emailServerPort)
     smtpServer.ehlo()
-    smtpServer.starttls() 
+    smtpServer.starttls()
     smtpServer.ehlo
+    # Setup content for email (In html format)
+    emailMessage = MIMEMultipart('alternative')
+    emailMessage['Subject'] = emailSubject
+    emailMessage['From'] = emailUser
+    emailMessage['To'] = ", ".join(emailTo)
+    emailText = MIMEText(str(message), 'html')
+    emailMessage.attach(emailText)
+
+    # If there is a file attachment
+    if (attachment):
+        fp = open(attachment,'rb')
+        fileAttachment = email.mime.application.MIMEApplication(fp.read(),_subtype="pdf")
+        fp.close()
+        fileAttachment.add_header('Content-Disposition','attachment',filename=os.path.basename(attachment))
+        emailMessage.attach(fileAttachment)
+
     # Login with sender email address and password
-    smtpServer.login(emailUser, emailPassword)
-    # Email content
-    header = 'To:' + emailTo + '\n' + 'From: ' + emailUser + '\n' + 'Subject:' + emailSubject + '\n'
-    body = header + '\n' + emailMessage + '\n' + '\n' + message
+    if (emailUser and emailPassword):
+        smtpServer.login(emailUser, emailPassword)
     # Send the email and close the connection
-    smtpServer.sendmail(emailUser, emailTo, body)    
+    smtpServer.sendmail(emailUser, emailTo, emailMessage.as_string())
+    smtpServer.quit()
 # End of send email function
 
 
 # This test allows the script to be used from the operating
-# system command prompt (stand-alone), in a Python IDE, 
+# system command prompt (stand-alone), in a Python IDE,
 # as a geoprocessing script tool, or as a module imported in
 # another script
 if __name__ == '__main__':
-    # Test to see if ArcGIS desktop installed
-    if ((os.path.basename(sys.executable).lower() == "arcgispro.exe") or (os.path.basename(sys.executable).lower() == "arcmap.exe") or (os.path.basename(sys.executable).lower() == "arccatalog.exe")):
-        arcgisDesktop = "true"
-        
-    # If ArcGIS desktop installed
-    if (arcgisDesktop == "true"):
+    # If using ArcPy
+    if (useArcPy == "true"):
         argv = tuple(arcpy.GetParameterAsText(i)
             for i in range(arcpy.GetArgumentCount()))
-    # ArcGIS desktop not installed
     else:
         argv = sys.argv
         # Delete the first argument, which is the script
-        del argv[0] 
+        del argv[0]
     # Logging
     if (enableLogging == "true"):
+        # Archive log file
+        if (archiveLogFiles == "true"):
+            # If file exists
+            if (os.path.isfile(logFile)):
+                # If file is larger than 10MB
+                if ((os.path.getsize(logFile) / 1048576) > 10):
+                    # Archive file
+                    shutil.move(logFile, os.path.basename(os.path.splitext(logFile)[0]) + "-" + time.strftime("%d%m%Y") + ".log")         
         # Setup logging
         logger, logMessage = setLogging(logFile)
-        # Log start of process
-        logger.info("Process started.")
+    # Log start of process
+    printMessage("Process started...","info")
     # Setup the use of a proxy for requests
     if (enableProxy == "true"):
         # Setup the proxy
-        proxy = urllib2.ProxyHandler({requestProtocol : proxyURL})
-        openURL = urllib2.build_opener(proxy)
+        proxy = urllib.request.ProxyHandler({requestProtocol : proxyURL})
+        openURL = urllib.request.build_opener(proxy)
         # Install the proxy
-        urllib2.install_opener(openURL)
+        urllib.request.install_opener(openURL)
     mainFunction(*argv)
