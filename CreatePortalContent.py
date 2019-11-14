@@ -10,7 +10,7 @@
 #                       - If feature service already exists, updates data in feature service from zipped FGDB
 # Author:               Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:         24/01/2019
-# Last Updated:         15/10/2019
+# Last Updated:         11/11/2019
 # ArcGIS Version:       ArcGIS API for Python 1.5.2+
 # Python Version:       3.6.5+ (Anaconda Distribution)
 #--------------------------------
@@ -124,6 +124,9 @@ def mainFunction(portalURL,portalUser,portalPassword,csvFileLocation,setItemType
                         elif (itemType.lower().replace(" ", "") == "form"):
                             # Create form
                             createForm(gisPortal,row["Title"],row["Summary"],row["Description"],row["Tags"],row["Thumbnail"],organisationSharing,groupSharing,row["Data"])
+                        elif (itemType.lower().replace(" ", "") == "tileservice"):
+                            # Create tile service
+                            createTileService(gisPortal,row["Title"],row["Summary"],row["Description"],row["Tags"],row["Thumbnail"],organisationSharing,groupSharing,row["Data"])
                         elif (itemType.lower().replace(" ", "") == "featureservice"):
                             # Create feature service
                             createFeatureService(gisPortal,row["Title"],row["Summary"],row["Description"],row["Tags"],row["Thumbnail"],organisationSharing,groupSharing,row["Data"])
@@ -486,6 +489,44 @@ def createForm(gisPortal,title,summary,description,tags,thumbnail,organisationSh
         printMessage("Sharing with the following groups - " + groupSharing + "...","info")
         item.share(groups=groupSharing)        
 # End of create form function
+
+
+# Start of create tile service function
+def createTileService(gisPortal,title,summary,description,tags,thumbnail,organisationSharing,groupSharing,dataFile):
+    printMessage("Creating tile service - " + title + "...","info")
+            
+    # FUNCTION - Search portal to see if form is already there
+    tileServiceExists = searchPortalForItem(gisPortal,title,"Map Service")
+
+    # Create the form properties
+    itemProperties = {'title':title,
+                      'type':"Map Service",
+                      'description':description,
+                      'snippet':summary,
+                      'tags':tags,
+                      'thumbnail':thumbnail,
+                      'access':organisationSharing.lower()}
+
+    item = ""        
+    # If the tile service has not been created
+    if (tileServiceExists == False):
+        printMessage("Function currently not supported...","info")  
+    # Tile service already exists
+    else:
+        # Get the item ID
+        itemID = getIDforPortalItem(gisPortal,title,"Map Service")
+        # Get the tile service
+        item = gisPortal.content.get(itemID)
+
+        # Update the tile service
+        item.update(itemProperties, thumbnail=thumbnail)
+        printMessage(title + " tile service item properties updated - " + itemID + "...","info")
+
+    # If sharing to group(s)
+    if (groupSharing) and (item):
+        printMessage("Sharing with the following groups - " + groupSharing + "...","info")
+        item.share(groups=groupSharing)        
+# End of create tile service function
 
 
 # Start of create feature service function
