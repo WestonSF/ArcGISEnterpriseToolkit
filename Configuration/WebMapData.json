@@ -1,0 +1,470 @@
+{
+  "operationalLayers": [],
+  "baseMap": {
+		"baseMapLayers": [{
+			"id": "defaultBasemap",
+			"layerType": "ArcGISTiledMapServiceLayer",
+			"url": "https://services.arcgisonline.co.nz/arcgis/rest/services/Generic/newzealand/MapServer",
+			"visibility": true,
+			"opacity": 1,
+			"title": "Streets"
+		}],
+		"title": "Streets"
+	},
+	"bookmarks": [{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1807255.7366135959,
+				"xmin": 1798716.2924513742,
+				"ymax": 5552689.823270075,
+				"ymin": 5546835.905312238
+			},
+			"name": "Bulls"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1824828.3296146304,
+				"xmin": 1821412.5519497418,
+				"ymax": 5930466.166538391,
+				"ymin": 5928124.599355256
+			},
+			"name": "Coromandel"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1830105.9962875498,
+				"xmin": 1826690.2186226612,
+				"ymax": 5497957.090027469,
+				"ymin": 5495615.522844334
+			},
+			"name": "Eketahuna"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1713136.311315491,
+				"xmin": 1709720.5336506024,
+				"ymax": 5635863.9247398265,
+				"ymin": 5633522.357556691
+			},
+			"name": "Eltham"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1823281.6776672462,
+				"xmin": 1814742.2335050246,
+				"ymax": 5547829.141494709,
+				"ymin": 5541975.223536872
+			},
+			"name": "Feilding"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1713582.7324560443,
+				"xmin": 1705043.2882938227,
+				"ymax": 5620910.224755847,
+				"ymin": 5615056.30679801
+			},
+			"name": "Hawera"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1861959.5958776218,
+				"xmin": 1853420.1517154002,
+				"ymax": 5842973.090596264,
+				"ymin": 5837119.1726384275
+			},
+			"name": "Katikati"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1838670.8373509634,
+				"xmin": 1835255.0596860747,
+				"ymax": 5563190.531920438,
+				"ymin": 5560848.964737303
+			},
+			"name": "Kimbolton"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1843472.587710345,
+				"xmin": 1834933.1435481233,
+				"ymax": 5592825.4259598795,
+				"ymin": 5586971.508002043
+			},
+			"name": "Mangaweka"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1807575.3425625148,
+				"xmin": 1804159.5648976262,
+				"ymax": 5435126.463443834,
+				"ymin": 5432784.896260699
+			},
+			"name": "Martinborough"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1807349.0658037376,
+				"xmin": 1798809.621641516,
+				"ymax": 5564273.033535496,
+				"ymin": 5558419.11557766
+			},
+			"name": "Marton"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1827694.6591626292,
+				"xmin": 1819155.2150004075,
+				"ymax": 5466589.253703679,
+				"ymin": 5460735.335745842
+			},
+			"name": "Masterton"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1848580.8653592314,
+				"xmin": 1840041.4211970097,
+				"ymax": 5813982.658726299,
+				"ymin": 5808128.740768462
+			},
+			"name": "Matamata"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1824768.6509617318,
+				"xmin": 1821352.8732968431,
+				"ymax": 5830756.579179916,
+				"ymin": 5828415.0119967805
+			},
+			"name": "Morrinsville"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1904470.5067714995,
+				"xmin": 1870312.730122613,
+				"ymax": 5832748.910454139,
+				"ymin": 5809333.238622796
+			},
+			"name": "Mount Maunganui"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1895818.614467715,
+				"xmin": 1878739.7261432717,
+				"ymax": 5829772.342001004,
+				"ymin": 5818064.5060853325
+			},
+			"name": "Mount Maunganui"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1703274.3960735954,
+				"xmin": 1686195.5077491521,
+				"ymax": 5679935.9031429,
+				"ymin": 5668228.067227229
+			},
+			"name": "New Plymouth"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1823052.204413616,
+				"xmin": 1819636.4267487274,
+				"ymax": 5872862.549096954,
+				"ymin": 5870520.981913819
+			},
+			"name": "Ngatea"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1675873.497994341,
+				"xmin": 1672457.7203294523,
+				"ymax": 5633707.157490318,
+				"ymin": 5631365.590307183
+			},
+			"name": "Opunake"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1838203.8661149386,
+				"xmin": 1834788.08845005,
+				"ymax": 5861632.667386855,
+				"ymin": 5859291.10020372
+			},
+			"name": "Paeroa"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1830553.3277068571,
+				"xmin": 1813474.4393824139,
+				"ymax": 5535824.253923678,
+				"ymin": 5524116.418008006
+			},
+			"name": "Palmerston North"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1848182.5900723434,
+				"xmin": 1839643.1459101217,
+				"ymax": 5788004.2788134,
+				"ymin": 5782150.360855564
+			},
+			"name": "Putaruru"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1797520.430256664,
+				"xmin": 1794104.6525917754,
+				"ymax": 5634519.578060293,
+				"ymin": 5632178.010877158
+			},
+			"name": "Raetihi"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1807750.2321201225,
+				"xmin": 1804334.4544552339,
+				"ymax": 5546257.841351484,
+				"ymin": 5543916.274168349
+			},
+			"name": "Sanson"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1887603.2855370573,
+				"xmin": 1870524.397212614,
+				"ymax": 5826769.3151616175,
+				"ymin": 5815061.479245946
+			},
+			"name": "Tauranga"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1843103.9332940178,
+				"xmin": 1834564.4891317962,
+				"ymax": 5844666.915080339,
+				"ymin": 5838812.997122502
+			},
+			"name": "Te Aroha"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1896709.6142891198,
+				"xmin": 1888170.1701268982,
+				"ymax": 5815002.915390884,
+				"ymin": 5809148.997433047
+			},
+			"name": "Te Puke"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1831863.35395942,
+				"xmin": 1823323.9097971984,
+				"ymax": 5888992.548898615,
+				"ymin": 5883138.630940778
+			},
+			"name": "Thames"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1843999.163077368,
+				"xmin": 1840583.3854124793,
+				"ymax": 5794308.676853391,
+				"ymin": 5791967.109670256
+			},
+			"name": "Tirau"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1855049.5915323438,
+				"xmin": 1846510.1473701221,
+				"ymax": 5768287.322096059,
+				"ymin": 5762433.404138222
+			},
+			"name": "Tokoroa"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1856030.2811064066,
+				"xmin": 1847490.836944185,
+				"ymax": 5860793.173237088,
+				"ymin": 5854939.255279251
+			},
+			"name": "Waihi"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1831918.9227583515,
+				"xmin": 1828503.145093463,
+				"ymax": 5628327.3984990595,
+				"ymin": 5625985.831315924
+			},
+			"name": "Waiouru"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1777966.4323138802,
+				"xmin": 1769426.9881516586,
+				"ymax": 5581243.546199175,
+				"ymin": 5575389.628241338
+			},
+			"name": "Wanganui"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1858512.377472403,
+				"xmin": 1849972.9333101814,
+				"ymax": 5881341.315061567,
+				"ymin": 5875487.397103731
+			},
+			"name": "Whangamata"
+		},
+		{
+			"extent": {
+				"spatialReference": {
+					"wkid": 2193,
+					"latestWkid": 2193
+				},
+				"xmax": 1845047.6745529515,
+				"xmin": 1836508.2303907298,
+				"ymax": 5923660.9933636645,
+				"ymin": 5917807.075405828
+			},
+			"name": "Whitianga"
+		}
+	]
+}

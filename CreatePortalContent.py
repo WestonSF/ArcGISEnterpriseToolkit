@@ -10,7 +10,7 @@
 #                       - If feature service already exists, updates data in feature service from zipped FGDB
 # Author:               Shaun Weston (shaun_weston@eagle.co.nz)
 # Date Created:         24/01/2019
-# Last Updated:         11/11/2019
+# Last Updated:         19/11/2019
 # ArcGIS Version:       ArcGIS API for Python 1.5.2+
 # Python Version:       3.6.5+ (Anaconda Distribution)
 #--------------------------------
@@ -706,7 +706,41 @@ def createFeatureServiceView(gisPortal,title,summary,description,tags,thumbnail,
     item = ""
     # If the feature service view has not been created
     if (featureServiceViewExists == False):
-        printMessage("Function currently not supported...","info")  
+        if (dataFile):
+            # If the file exists
+            if (os.path.exists(dataFile)):
+                # Open file
+                with open(dataFile) as jsonFile:
+                    jsonData = json.load(jsonFile)
+                    # If name in config file
+                    if "serviceName" in jsonData:
+                        # If source URL in config
+                        if "sourceItemID" in jsonData:
+                            # Get the source feature service
+                            sourceItem = gisPortal.content.get(jsonData["sourceItemID"])
+                            sourceFeatureLayer = arcgis.features.FeatureLayerCollection.fromitem(sourceItem)
+
+                            # Create the view
+                            item = sourceFeatureLayer.manager.create_view(name=jsonData["serviceName"])
+                            viewFeatureLayer = arcgis.features.FeatureLayerCollection.fromitem(item)
+
+                            if "viewDefinition" in jsonData:
+                                # For each layer in the feature service view
+                                for layer in viewFeatureLayer.layers:
+                                    # Set the definition query
+                                    viewDef = {"viewDefinitionQuery" : jsonData["viewDefinition"]}
+                                    layer.manager.update_definition(viewDef)
+                            else:
+                                printMessage("viewDefinition does not exist in configuration file - " + dataFile + "...","warning")
+                                
+                            featureLayerViewItem.update(itemProperties)
+                            printMessage(title + " feature service view created - " + featureLayerViewItem.id + "...","info")
+                        else:
+                            printMessage("sourceItemID does not exist in configuration file - " + dataFile + "...","error")  
+                    else:
+                        printMessage("name does not exist in configuration file - " + dataFile + "...","error")                        
+            else:
+                printMessage(title + " feature service view data does not exist - " + dataFile + "...","warning")
     # Feature service view already exists
     else:
         # Get the item ID

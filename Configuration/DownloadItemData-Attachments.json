@@ -1,0 +1,136 @@
+{
+	"items": [
+{
+			"dataID": "0",
+			"itemID": "e84d91ae2a054c22aa53c93c48976553",
+			"layerID": "1",
+			"createFolder": "true",
+			"createFeatureFolder": "true",
+			"subFolders": "",
+			"name": "Sites",
+			"idField": "SiteID",
+			"parentDataID": "",
+			"joinField": ""
+		},
+		{
+			"dataID": "1",
+			"itemID": "e84d91ae2a054c22aa53c93c48976553",
+			"layerID": "5",
+			"createFolder": "true",
+			"createFeatureFolder": "true",
+			"subFolders": "As Builts,Inspections,Maintenance,RPA Footage",
+			"name": "Assets",
+			"idField": "AssetID",
+			"parentDataID": "0",
+			"joinField": "SiteID"
+		},
+		{
+			"dataID": "2",
+			"itemID": "e84d91ae2a054c22aa53c93c48976553",
+			"layerID": "6",
+			"createFolder": "true",
+			"createFeatureFolder": "true",
+			"subFolders": "As Builts,Inspections,Maintenance,RPA Footage",
+			"name": "Assets",
+			"idField": "AssetID",
+			"parentDataID": "0",
+			"joinField": "SiteID"
+		},
+		{
+			"dataID": "3",
+			"itemID": "e84d91ae2a054c22aa53c93c48976553",
+			"layerID": "7",
+			"createFolder": "true",
+			"createFeatureFolder": "true",
+			"subFolders": "As Builts,Inspections,Maintenance,RPA Footage",
+			"name": "Assets",
+			"idField": "AssetID",
+			"parentDataID": "0",
+			"joinField": "SiteID"
+		},
+		{
+			"dataID": "4",
+			"itemID": "e84d91ae2a054c22aa53c93c48976553",
+			"layerID": "8",
+			"createFolder": "true",
+			"createFeatureFolder": "true",
+			"subFolders": "As Builts,Inspections,Maintenance,RPA Footage",
+			"name": "Assets",
+			"idField": "AssetID",
+			"parentDataID": "0",
+			"joinField": "SiteID"
+		},
+		{
+			"dataID": "5",
+			"itemID": "e84d91ae2a054c22aa53c93c48976553",
+			"layerID": "9",
+			"createFolder": "true",
+			"createFeatureFolder": "true",
+			"subFolders": "As Builts,Inspections,Maintenance,RPA Footage",
+			"name": "Assets",
+			"idField": "AssetID",
+			"parentDataID": "0",
+			"joinField": "SiteID"
+		},
+		{
+			"dataID": "6",
+			"itemID": "e84d91ae2a054c22aa53c93c48976553",
+			"layerID": "10",
+			"createFolder": "true",
+			"createFeatureFolder": "true",
+			"subFolders": "As Builts,Inspections,Maintenance,RPA Footage",
+			"name": "Assets",
+			"idField": "AssetID",
+			"parentDataID": "0",
+			"joinField": "SiteID"
+		},
+		{
+			"dataID": "7",
+			"itemID": "e84d91ae2a054c22aa53c93c48976553",
+			"layerID": "11",
+			"createFolder": "true",
+			"createFeatureFolder": "true",
+			"subFolders": "As Builts,Inspections,Maintenance,RPA Footage",
+			"name": "Assets",
+			"idField": "AssetID",
+			"parentDataID": "0",
+			"joinField": "SiteID"
+		},
+		{
+			"dataID": "8",
+			"itemID": "e84d91ae2a054c22aa53c93c48976553",
+			"layerID": "4",
+			"createFolder": "true",
+			"createFeatureFolder": "true",
+			"subFolders": "",
+			"name": "Antennas",
+			"idField": "AntennaID",
+			"parentDataID": "6",
+			"joinField": "AssetID"
+		},
+		{
+			"dataID": "9",
+			"itemID": "e84d91ae2a054c22aa53c93c48976553",
+			"layerID": "0",
+			"createFolder": "true",
+			"createFeatureFolder": "true",
+			"subFolders": "",
+			"name": "Actions",
+			"idField": "ActionID",
+			"parentDataID": "0",
+			"joinField": "SiteID"
+		},
+		{
+			"dataID": "10",
+			"itemID": "e84d91ae2a054c22aa53c93c48976553",
+			"layerID": "12",
+			"createFolder": "true",
+			"createFeatureFolder": "false",
+			"subFolders": "",
+			"name": "Closeout Photos",
+			"idField": "ActionID",
+			"parentDataID": "9",
+			"joinField": "ActionID"
+		}
+	]
+}
